@@ -1,0 +1,29 @@
+Materials:
+    A:
+        k: 2
+        rho: 1
+        cp: 1
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.1]            # m
+    dx: [0.001]                 # m
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Convection
+        h: 10.
+        T: 300.
+    Right:
+        Type: Heat Flux
+        Flux: 150.
+
+Time:
+    Run Time: 0.0
+    T Initial: 300.
+
+Other:
+    Y Dimension: 0.2
+    Z Dimension: 0.1

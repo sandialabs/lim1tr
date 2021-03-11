@@ -1,0 +1,65 @@
+Materials:
+    A:
+        k: 1.
+        rho: 2000.
+        cp: 500.
+
+Species:
+    Names: ['H2', 'O2', 'H2O', 'O']
+    Initial Mass Fraction: [0.3, 0.3, 0.3, 0.1]
+    Molecular Weights: [2., 32., 18., 16.]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 1e6
+        E: 10000.
+        R: 1
+        H: -100
+        Reactants:
+            'H2': 1
+            'O2': 0.5
+        Products:
+            'H2O': 1
+        Orders:
+            'H2': 1
+            'O2': 2
+    2:
+        A: 1e5
+        E: 10000.
+        R: 1
+        H: -10
+        Reactants:
+            'H2O': 1
+        Products:
+            'H2': 1
+            'O': 1
+        Orders:
+            'H2O': 1
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.1]
+    dx: [0.1]
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Convection
+        h: 10000.
+        T: 800.
+    Right:
+        Type: Convection
+        h: 10000.
+        T: 300.
+
+Time:
+    Run Time: 10.
+    T Initial: 500.
+
+Other:
+    Y Dimension: 0.2
+    Z Dimension: 0.1
+    Reaction Only: 0
+

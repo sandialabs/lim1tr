@@ -1,0 +1,56 @@
+Materials:
+    A:
+        k: 1.
+        rho: 2000.
+        cp: 500.
+    B:
+        k: 10.
+        rho: 2000.
+        cp: 500.
+
+
+Species:
+    Names: ['H2', 'O2', 'H2O']
+    Initial Mass Fraction: [0.5, 0.5, 0.0]
+    Molecular Weights: [2., 32., 18.]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 1e6
+        E: 10000.
+        R: 1
+        H: -500000
+        Reactants:
+            'H2': 1
+            'O2': 0.5
+        Products:
+            'H2O': 1
+        Orders:
+            'H2': 1
+            'O2': 1
+        Type: 'Basic'
+
+Domain Table:
+    Material Name: [B, A, B]
+    Thickness: [0.05, 0.1, 0.05]
+    dx: [0.001, 0.001, 0.001]
+
+Boundary:
+    External h: 0.
+    External T: 300.
+    Left h: 100.
+    Left T: 800.
+    Right h: 100.
+    Right T: 300.
+
+Time:
+    Run Time: 200.0
+    T Initial: 298.15
+    dt: 0.1
+    Order: 1
+
+Other:
+    Y Dimension: 0.2
+    Z Dimension: 0.1
+    Reaction Only: 0

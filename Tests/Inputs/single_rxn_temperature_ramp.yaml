@@ -1,0 +1,48 @@
+Materials:
+    A:
+        k: 10.
+        rho: 10.
+        cp: 1.
+
+Species:
+    Names: ['AA', 'BB']
+    Initial Mass Fraction: [1.0, 0.0]
+    Molecular Weights: [1., 1.]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 10.
+        E: 1000.
+        R: 1
+        H: -100
+        Reactants:
+            'AA': 1
+        Products:
+            'BB': 1
+        Orders:
+            'AA': 1
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.1]
+    dx: [0.1]
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Adiabatic
+    Right:
+        Type: Adiabatic
+
+Time:
+    Run Time: 20.0
+    T Initial: 298.15
+
+Other:
+    Y Dimension: 0.1
+    Z Dimension: 0.1
+    Reaction Only: 1
+    DSC Mode: 1
+    DSC Rate: 5.

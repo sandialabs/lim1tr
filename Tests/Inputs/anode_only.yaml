@@ -1,0 +1,53 @@
+Materials:
+    A:
+        k: 1.
+        rho: 2000.
+        cp: 500.
+
+Species:
+    Names: ['C6Li', 'EC', 'C6', 'Li2CO3', 'C2H4', 'Inert']
+    Initial Mass Fraction: [0.13, 0.054, 0.0, 0.0, 0.0, 0.816]
+    Molecular Weights: [79.007, 88.062, 72.066, 177.874, 28.054]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 3.2718e+13
+        E: 16236.69493
+        R: 1
+        H: -2287100.
+        Reactants:
+            'C6Li': 2
+            'EC': 1
+        Products:
+            'C6': 2
+            'Li2CO3': 1
+            'C2H4': 1
+        Type: 'Zcrit'
+        BET_C6: 1.1
+        tau_crit: 0.08
+        C_t: 72.5
+        Y_Graphite: 0.1212044831
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.01]
+    dx: [0.01]
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Adiabatic
+    Right:
+        Type: Adiabatic
+
+Time:
+    Run Time: 30.
+    T Initial: 448.15
+    dt: 0.1
+
+Other:
+    Y Dimension: 0.01
+    Z Dimension: 0.01
+    Reaction Only: 1

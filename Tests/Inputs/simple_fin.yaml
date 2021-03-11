@@ -1,0 +1,32 @@
+Materials:
+    A:
+        k: 10
+        rho: 1
+        cp: 1
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.1]            # m
+    dx: [0.001]                 # m
+
+Boundary:
+    External:
+        Type: Convection
+        h: 100.
+        T: 300.
+    Left:
+        Type: Convection
+        h: 1000.
+        T: 500.
+    Right:
+        Type: Convection
+        h: 1000.
+        T: 500.
+
+Time:
+    Run Time: 0.0
+    T Initial: 298.15
+
+Other:
+    Y Dimension: 0.2
+    Z Dimension: 0.1
