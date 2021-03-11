@@ -1,0 +1,17 @@
+*.pyc
+*.p
+*.csv
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*Figures
+*.png
+Source/*~
+Unit/*~
+Unit/Unit_Inputs/*~
+Inputs/*~
+lim1tr.sublime*
