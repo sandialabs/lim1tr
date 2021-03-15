@@ -27,5 +27,6 @@ Output is saved in a pickle file as a list of the following objects:
 - Pandas
 - Matplotlib
 - Numba
+- PyYAML
 
 A full user guide is in preparation.
