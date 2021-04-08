@@ -12,6 +12,7 @@ from __future__ import division
 import numpy as np
 import pickle as p
 import pandas as pd
+import os
 
 
 class data_manager:
@@ -98,18 +99,24 @@ class data_manager:
 
     def write_data(self):
         # Write data to a pickle
-        with open(self.fold_name + self.file_name + '_output_' + str(self.out_num).rjust(4, '0') + '.p', 'wb') as f:
+        tmp_name = self.file_name + '_output_' + str(self.out_num).rjust(4, '0') + '.p'
+        output_file = os.path.join(self.fold_name, tmp_name)
+        with open(output_file, 'wb') as f:
             p.dump([self.cap_dict, self.data_dict, self.rate_dict], f)
 
 
     def compile_data(self):
         # Open first file
-        with open(self.fold_name + self.file_name + '_output_' + str(0).rjust(4, '0') + '.p', 'rb') as f:
+        tmp_name = self.file_name + '_output_' + str(0).rjust(4, '0') + '.p'
+        output_file = os.path.join(self.fold_name, tmp_name)
+        with open(output_file , 'rb') as f:
             my_cap, my_data, my_rate = p.load(f)
 
         # Open and append remaining files
         for i in range(1,self.out_num + 1):
-            with open(self.fold_name + self.file_name + '_output_' + str(i).rjust(4, '0') + '.p', 'rb') as f:
+            tmp_name = self.file_name + '_output_' + str(i).rjust(4, '0') + '.p'
+            output_file = os.path.join(self.fold_name, tmp_name)
+            with open(output_file , 'rb') as f:
                 tmp_cap, tmp_data, tmp_rate = p.load(f)
             my_data['Time'] = np.concatenate((my_data['Time'], tmp_data['Time']), axis=0)
             my_data['Temperature'] = np.concatenate((my_data['Temperature'], tmp_data['Temperature']), axis=0)
@@ -123,5 +130,7 @@ class data_manager:
                 my_rate['Temperature Rate'] = np.concatenate((my_rate['Temperature Rate'], tmp_rate['Temperature Rate']), axis=0)
 
         # Write data to a pickle
-        with open(self.fold_name + self.file_name + '_output.p','wb') as f:
+        tmp_name = self.file_name + '_output.p'
+        output_file = os.path.join(self.fold_name, tmp_name)
+        with open(output_file ,'wb') as f:
             p.dump([my_cap, my_data, my_rate], f)

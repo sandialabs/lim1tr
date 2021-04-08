@@ -32,12 +32,9 @@ class input_parser:
             self.cap_dict = yaml.load(f, Loader=yaml.FullLoader)
 
         # Get the folder and file names for saving output
-        self.file_name = i_file.split('/')[-1].split('.')[0]
-        temp_fold = i_file.split(self.file_name + '.yaml')[0]
-        if i_file[0] == '/':
-            self.fold_name = temp_fold
-        else:
-            self.fold_name = os.getcwd() + '/' + temp_fold
+        abs_path = os.path.abspath(self.i_file)
+        self.fold_name, file_name = os.path.split(abs_path)
+        self.file_name = file_name.split('.yaml')[0]
 
 
     def print_dictionary(self):
@@ -75,7 +72,7 @@ class input_parser:
         self.load_materials(mat_man, grid_man)
 
         # Time
-        time_opts = self.load_time()
+        time_opts = self.load_time(grid_man)
 
         # Boundaries
         bc_man = build_sys.bc_manager(grid_man)
@@ -211,8 +208,11 @@ class input_parser:
         bc_man.PA_r = 2.*(L_y + L_z)/(L_y*L_z)
 
 
-    def load_time(self):
+    def load_time(self, grid_man):
         '''Parse timing properties
+
+        Args:
+            grid_man (object): grid manager
 
         Returns:
             time_dict (dictionary): timing options
@@ -242,5 +242,24 @@ class input_parser:
         # Set output frequency if not provided
         if 'Output Frequency' not in time_dict.keys():
             time_dict['Output Frequency'] = 1
+
+        # Set print progress if not provided
+        if 'Print Progress' not in time_dict.keys():
+            time_dict['Print Progress'] = 1
+
+        # Set initial temperature
+        if type(time_dict['T Initial']) is list:
+            if len(time_dict['T Initial']) != grid_man.n_mats:
+                err_str = 'Number of initial temperatures does not match number of materials.'
+                raise ValueError(err_str)
+            temp_init = np.zeros(grid_man.n_tot)
+            n_start = 0
+            for m in range(grid_man.n_mats):
+                n_end = grid_man.mint_list[m] + 1
+                temp_init[n_start:n_end] = time_dict['T Initial'][m]
+                n_start = 1*n_end
+            time_dict['T Initial'] = temp_init
+        else:
+            time_dict['T Initial'] = np.zeros(grid_man.n_tot) + time_dict['T Initial']
 
         return time_dict

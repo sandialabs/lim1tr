@@ -25,6 +25,7 @@ Time:
     T Initial: 300.
     Order: 2
     Force Split: True
+    Print Progress: 0
 
 Other:
     Y Dimension: 0.2

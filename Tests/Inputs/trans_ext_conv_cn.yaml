@@ -23,6 +23,7 @@ Time:
     dt: 0.001
     T Initial: 300.
     Order: 2
+    Print Progress: 0
 
 Other:
     Y Dimension: 0.2

@@ -72,7 +72,7 @@ def trans_end_conv(file_name, plotting=False):
     for i in range(4):
         C_n = 4.*np.sin(zeta_n[i])/(2.*zeta_n[i] + np.sin(2.*zeta_n[i]))
         theta += C_n*np.exp(-zeta_n[i]**2*Fo)*np.cos(zeta_n[i]*x_star)
-    T_ans = bc_man.T_right + theta*(time_opts['T Initial'] - bc_man.T_right)
+    T_ans = bc_man.T_right + theta*(np.mean(time_opts['T Initial']) - bc_man.T_right)
 
     # Calculate error
     err = np.sqrt(np.sum((T_ans - eqn_sys.T_lin[half_nodes:])**2)/half_nodes)
@@ -135,7 +135,7 @@ def trans_ext_conv(file_name, e_tol):
     my_t = time_opts['Run Time']
     my_mat = mat_man.get_material('A')
     C_o = bc_man.h_ext*bc_man.PA_r/(my_mat.rho*my_mat.cp)
-    T_ans = bc_man.T_ext + (time_opts['T Initial'] - bc_man.T_ext)*np.exp(-1.0*C_o*my_t)
+    T_ans = bc_man.T_ext + (np.mean(time_opts['T Initial']) - bc_man.T_ext)*np.exp(-1.0*C_o*my_t)
     err = np.max(np.abs(eqn_sys.T_lin - T_ans))
     if err > e_tol:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
@@ -164,7 +164,7 @@ def trans_end_flux_cn(plotting=False):
     c_two = np.exp(-1.*grid_man.x_node**2/(4*alpha*my_t))
     c_three = q_in*grid_man.x_node/my_mat.k
     c_four = sp.special.erfc(grid_man.x_node*0.5/np.sqrt(alpha*my_t))
-    T_ans = time_opts['T Initial'] + c_one*c_two - c_three*c_four
+    T_ans = np.mean(time_opts['T Initial']) + c_one*c_two - c_three*c_four
 
     # Calculate error
     err = np.sqrt(np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot)

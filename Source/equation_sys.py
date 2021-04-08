@@ -15,9 +15,10 @@ import time
 
 
 class eqn_sys:
-    def __init__(self, grid_man, reac_man, sol_mode, time_order):
+    def __init__(self, grid_man, reac_man, sol_mode, time_order, print_progress):
         self.n_tot = grid_man.n_tot
         self.dx_arr = grid_man.dx_arr
+        self.print_progress = print_progress
 
         # Linear conduction system
         self.LHS_c = np.zeros(self.n_tot)
@@ -96,7 +97,7 @@ class eqn_sys:
             start_time = time.time()
             self.transient_solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
             step_time.append(time.time() - start_time)
-            if (t_int.n_step%10 == 0):
+            if (t_int.n_step%10 == 0) & self.print_progress:
                 print('{:0.1f}%\tVol Avg T: {:0.1f} K'.format(
                     100.*t_int.tot_time/t_int.end_time,
                     np.sum(t_int.T_m1*self.dx_arr)/np.sum(self.dx_arr)))
