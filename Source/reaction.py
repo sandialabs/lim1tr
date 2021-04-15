@@ -200,9 +200,9 @@ class reaction_manager:
         for i in range(self.n_tot):
             if self.mat_name == self.mat_nodes[i]:
                 # Solve system
-                my_sol, nfo = self.solve_ode_node(t_arr, T_in, i, dt0=dt0, atol=atol, rtol=rtol, nsteps=nsteps)
+                my_sol, my_status = self.solve_ode_node(t_arr, T_in, i, dt0=dt0, atol=atol, rtol=rtol, nsteps=nsteps)
                 if return_err:
-                    err_list.append(err_list)
+                    err_list.append(my_status)
 
                 # Update densities
                 for j in range(len(self.species_name_list)):
@@ -240,9 +240,8 @@ class reaction_manager:
         sol = solve_ivp(self.evaluate_ode, (t_arr[0], t_arr[-1]),
             v_in, method='LSODA', rtol=rtol, atol=atol, jac=self.evaluate_jacobian,
             t_eval=t_arr, first_step=dt0)
-        nfo = 0
 
-        return sol.y.T, nfo
+        return sol.y.T, sol.status
 
 
     def get_rates(self, my_sol):
