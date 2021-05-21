@@ -222,14 +222,11 @@ class input_parser:
         # Determine tranisent run
         if time_dict['Run Time'] < 1e-16:
             time_dict['Solution Mode'] = 'Steady'
+            time_dict['dt'] = 0.0
         else:
             time_dict['Solution Mode'] = 'Transient'
             if 'Force Split' in time_dict.keys():
                 time_dict['Solution Mode'] += ' Split'
-
-        # Set dt if not provided
-        if 'dt' not in time_dict.keys():
-            time_dict['dt'] = time_dict['Run Time']/10.
 
         # Set max steps if not provided
         if 'Max Steps' not in time_dict.keys():
