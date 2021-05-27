@@ -37,12 +37,16 @@ Domain Table:
     dx: [0.001, 0.001, 0.001]
 
 Boundary:
-    External h: 0.
-    External T: 300.
-    Left h: 100.
-    Left T: 800.
-    Right h: 100.
-    Right T: 300.
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Convection
+        h: 100.
+        T: 800.
+    Right:
+        Type: Convection
+        h: 100.
+        T: 300.
 
 Time:
     Run Time: 200.0

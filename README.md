@@ -12,7 +12,7 @@ Output is saved in a pickle file as a list of the following objects:
     - "Time": simulation time (1D array)
     - "Grid": location of the center of each control volume (1D array)
     - "Temperature": temperature (2D array)
-    - "Interface Temperature": temparature at each material interface (2D array)
+    - "Interface Temperature": temperature at each material interface (2D array)
     - Species mass concentration indexed by user defined species names, if present (2D array)
 - Dictionary of the rate of change of state variables with respect to time at each control volume and simulation time
     - "Time": simulation time (1D array)
