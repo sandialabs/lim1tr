@@ -1,0 +1,68 @@
+Materials:
+    A:
+        k: 0.5                  # W/m/K
+        rho: 2001.56            # kg/m^3
+        cp: 778.0               # J/kg/K
+
+Species:
+    Names: ['EC', 'C6Li', 'SEI', 'Salt1', 'Li2CO3', 'C6', 'AllGas', 'Container']
+    Initial Mass Fraction: [0.2498172134, 0.5837978725, 0.0598347191, 0.0, 0.0, 0.0, 0.0, 0.106550195]
+    Molecular Weights: [88.062, 79.007, 161.952, 73.89, 73.89, 72.066, 1.0, 0.0]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 8.158513762e+16      # (kg reactants/s) / (kg SEI * m^3)^(1/2)
+        E: 16236.69493          # K
+        R: 1
+        H: -635000.0            # J/kg reactants
+        Reactants:
+            'SEI': 1            # kmol
+        Products:
+            'Salt1': 1          # kmol
+            'AllGas': 88.062    # kmol
+        Orders:
+            'SEI': 0.5
+    2:
+        A: 3.2718e+13           # kg reactants/kg C6Li/s
+        E: 16236.69493          # K
+        R: 1
+        H: -2287100.0           # J/kg reactants
+        Reactants:
+            'C6Li': 2           # kmol
+            'EC': 1             # kmol
+        Products:
+            'C6': 2             # kmol
+            'Li2CO3': 1         # kmol
+            'AllGas': 28.054    # kmol
+        Type: 'Zcrit'
+        BET_C6: 1.1             # BET surface area
+        tau_crit: 0.08          # Critical anode conversion
+        C_t: 72.5               # Model parameter for SEI growth
+        Y_Graphite: 0.532509493 # Initial mass fraction of graphite    
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.005]          # m
+    dx: [0.005]                 # m
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Adiabatic
+    Right:
+        Type: Adiabatic
+
+Time:
+    Run Time: 1600.0            # s
+    T Initial: 350.0            # K
+    dt: 0.1                     # s
+    Order: 1                    # Conduction time stepper order
+
+Other:
+    Y Dimension: 0.003          # m
+    Z Dimension: 0.003          # m
+    Reaction Only: 1            # Only solve reactions
+    DSC Mode: 1                 # Use the DSC model for temperature evolution
+    DSC Rate: 0.166666667       # DSC heating rate in K/s

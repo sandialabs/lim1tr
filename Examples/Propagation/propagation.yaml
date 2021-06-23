@@ -1,0 +1,56 @@
+Materials:
+    Battery:
+        k: 0.5          # W/m/K
+        rho: 1800       # kg/m3
+        cp: 800         # J/kg/K
+
+    Hot Block:
+        k: 237          # W/m/K
+        rho: 2700       # kg/m3
+        cp: 900         # J/kg/K
+
+Species:
+    Names: ['R', 'P', 'Inert']
+    Initial Mass Fraction: [0.35, 0.0, 0.65]    # kg species/kg total
+    Molecular Weights: [1.0, 1.0, 0.0]          # kg/kmol
+    Material Name: Battery
+
+Reactions:
+    1:                  # 1 R -> 1 P
+        A: 1.0e+9       # kg total reactants/kg species R/s
+        E: 110000       # J/mol
+        R: 8.314        # J/mol/K
+        H: -1.44e+6     # J/kg total reactants
+        Reactants:
+            'R': 1      # kmol
+        Products:
+            'P': 1      # kmol
+        Orders:
+            'R': 1
+
+Domain Table:
+    Material Name: [Hot Block, Battery, Battery, Battery]
+    Thickness: [0.002, 0.007, 0.007, 0.007]                 # m
+    dx: [0.001, 0.0002, 0.0002, 0.0002]                     # m
+    Contact Resistance: [0.002, 0.004, 0.004]               # m2/K/W
+
+Boundary:
+    External:
+        Type: Convection
+        h: 10               # W/m2/K
+        T: 294.15           # K
+    Left:
+        Type: Adiabatic
+    Right:
+        Type: Adiabatic
+
+Time:
+    Run Time: 100.0                                 # s
+    T Initial: [973.15, 294.15, 294.15, 294.15]     # K
+    dt: 0.01                                        # s
+    Output Frequency: 10
+    Order: 2
+
+Other:
+    Y Dimension: 0.12       # m
+    Z Dimension: 0.04       # m
