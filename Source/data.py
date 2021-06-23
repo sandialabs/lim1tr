@@ -44,7 +44,11 @@ class data_manager:
             self.rate_dict['HRR'] = np.array(reac_man.heat_release_rate, ndmin=2)
             self.rate_dict['Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
         self.data_len = 1
-        self.max_len = 1000     # TODO: this should be based on the grid size and a maximum memory usage
+        num_outputs = self.n_tot + self.data_dict['Interface Temperature'].shape[1]
+        if reac_man:
+            num_outputs += 2*self.n_tot*(len(self.species_name_list) + 1)
+        max_entries = 200000
+        self.max_len = max(10, int(max_entries/num_outputs))
         self.out_num = 0
         self.output_frequency = time_opts['Output Frequency']
 

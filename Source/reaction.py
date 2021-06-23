@@ -42,9 +42,7 @@ class reaction_manager:
             if other_opts['Reaction Only']:
                 self.rxn_only = True
 
-        # some constants
-        self.one_third    = 1.0 / 3.0
-        self.two_thirds   = 2.0 * self.one_third
+        # Small constant
         self.small_number = 1.0e-14
 
 
@@ -72,8 +70,11 @@ class reaction_manager:
         
         for i in range(self.n_species):
             name = self.species_name_list[i]           
-            self.species_density[name] = np.zeros(self.n_tot) + spec_dict['Initial Mass Fraction'][i]*self.rho
+            self.species_density[name] = np.zeros(self.n_tot)
             self.species_rate[name] = np.zeros(self.n_tot)
+            for j in range(self.n_tot):
+                if self.mat_name == self.mat_nodes[j]:
+                    self.species_density[name][j] = spec_dict['Initial Mass Fraction'][i]*self.rho
         self.heat_release_rate = np.zeros(self.n_tot)
         self.temperature_rate = np.zeros(self.n_tot)
 
@@ -191,7 +192,7 @@ class reaction_manager:
         return d_jac
 
 
-    def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-8, atol=1e-6, rtol=1e-6, nsteps=5000, return_err=False):
+    def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-6, atol=1e-6, rtol=1e-6, nsteps=5000, return_err=False):
         '''Solve the system of ODEs at each node
         This is the main function called from the transient loop
         '''
@@ -225,7 +226,7 @@ class reaction_manager:
         return T_out, err_list
 
 
-    def solve_ode_node(self, t_arr, T_in, node_i, dt0=1e-8, atol=1e-6, rtol=1e-6, nsteps=5000):
+    def solve_ode_node(self, t_arr, T_in, node_i, dt0=1e-6, atol=1e-6, rtol=1e-6, nsteps=5000):
         # Create input array
         v_in = np.zeros(self.n_species + 1)
 
