@@ -308,7 +308,7 @@ class bc_manager:
         for i in range(self.n_tot):
             # convection constant
             h_const = self.h_ext*self.dx_arr[i]*self.PA_r
-            
+
             # RHS
             eqn_sys.RHS[i] += h_const*(self.T_ext - T[i])
 

@@ -122,7 +122,7 @@ class eqn_sys:
         # Solve
         self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
                               self.RHS, self.T_lin, self.cp, self.dp, self.n_tot)
-        
+
         # Update time
         t_int.post_solve(self, self.T_lin)
 

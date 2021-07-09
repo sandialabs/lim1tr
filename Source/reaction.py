@@ -26,7 +26,7 @@ class reaction_manager:
         if 'DSC Mode' in other_opts.keys():
             self.dsc_mode = other_opts['DSC Mode']
 
-        # Set form of temperature ode 
+        # Set form of temperature ode
         if self.dsc_mode:
             self.temperature_ode = self.linear_temperature
             if 'DSC Rate' not in other_opts.keys():
@@ -67,9 +67,9 @@ class reaction_manager:
         self.n_species = len(spec_dict['Names'])
         self.species_name_list = spec_dict['Names']
         self.molecular_weights = dict(zip(spec_dict['Names'], spec_dict['Molecular Weights']))
-        
+
         for i in range(self.n_species):
-            name = self.species_name_list[i]           
+            name = self.species_name_list[i]
             self.species_density[name] = np.zeros(self.n_tot)
             self.species_rate[name] = np.zeros(self.n_tot)
             for j in range(self.n_tot):
@@ -114,7 +114,7 @@ class reaction_manager:
             self.frac_mat[key_list,i] += val_arr
 
             self.model_list.append(my_rxn_model)
-            
+
         # Augment frac mat with a row for temperature (for computing the jacobian)
         self.aug_rows = np.array(self.H_rxn/self.rho_cp, ndmin=2)
         if self.dsc_mode:
@@ -217,7 +217,7 @@ class reaction_manager:
                     self.species_rate[self.species_name_list[j]][i] = np.copy(rate_arr[j])
                 self.temperature_rate[i] = np.copy(rate_arr[-1])
                 self.heat_release_rate[i] = np.copy(rate_arr[-1])*self.rho_cp
-                    
+
                 # Save temperature
                 T_out[i] = np.copy(my_sol[-1,-1])
             else:
