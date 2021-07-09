@@ -156,6 +156,10 @@ class input_parser:
         mint_list = []
         dx_list = []
         for i in range(n_layers):
+            if tab_dict['Thickness'][i] < tab_dict['dx'][i]:
+                err_str = 'Requested dx on layer {} is greater than the thickness.'.format(i)
+                raise ValueError(err_str)
+
             # Calculate number of nodes
             n_m = int(np.round(tab_dict['Thickness'][i]/tab_dict['dx'][i],0))
 
