@@ -187,11 +187,8 @@ class input_parser:
         # Recast list of material types as an array
         mat_nodes = np.asarray(mat_nodes)
 
-        # Load other options for Ly and Lz
-        oth_dict = self.cap_dict['Other']
-
         # Setup grid object
-        grid_man.setup_grid(dx_arr, mat_nodes, mint_list, oth_dict)
+        grid_man.setup_grid(dx_arr, mat_nodes, mint_list)
 
 
     def load_bc(self, bc_man):

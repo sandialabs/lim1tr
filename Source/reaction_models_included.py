@@ -39,7 +39,7 @@ class basic_rxn(reaction_model_base.rxn_model):
         '''
         my_dr_part_col = np.zeros(self.n_species)
         for kk in range(self.n_species):
-            if (abs(self.orders[kk]) > 1e-15):
+            if (abs(self.orders[kk]) > self.small_number):
                 order_temp = np.copy(self.orders)
                 order_temp[kk] -= 1.
                 my_dr_part_col[kk] = self.orders[kk]*np.prod(np.maximum(my_v[:-1],1e-8)**order_temp)

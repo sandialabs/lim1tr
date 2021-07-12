@@ -13,17 +13,15 @@ import numpy as np
 
 
 class grid_manager:
-    def setup_grid(self, dx_arr, mat_nodes, mint_list, oth_dict):
+    def setup_grid(self, dx_arr, mat_nodes, mint_list):
         '''Sets up the grid.
 
         Args:
             dx_arr (numpy array): width of each cv in x direction
             mat_nodes (numpy array): material name at each node
             mint_list (list): list of left node at each interface (and last node)
-            oth_dict (dictionary): other options (for y and z dimensions)
         '''
         self.dx_arr = dx_arr
-        self.dv_arr = dx_arr*oth_dict['Y Dimension']*oth_dict['Z Dimension']
         self.mat_nodes = mat_nodes
         self.mint_list = mint_list
         self.n_mats = len(mint_list)

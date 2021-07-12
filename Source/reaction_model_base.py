@@ -18,6 +18,7 @@ class rxn_model:
         self.molecular_weights = reac_man.molecular_weights
         self.species_name_list = reac_man.species_name_list
         self.n_species = len(self.species_name_list)
+        self.small_number = reac_man.small_number
 
         self.rxn_info['Reactants'] = self.convert_to_mass(self.rxn_info['Reactants'])
         self.rxn_info['Products'] = self.convert_to_mass(self.rxn_info['Products'])

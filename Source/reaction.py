@@ -20,6 +20,7 @@ class reaction_manager:
         self.species_rate = {}
         self.n_tot = grid_man.n_tot
         self.mat_nodes = grid_man.mat_nodes
+        self.cross_area = other_opts['Y Dimension']*other_opts['Z Dimension']
 
         # Set DSC Mode
         self.dsc_mode = 0
@@ -47,7 +48,7 @@ class reaction_manager:
                     raise ValueError(err_str)
 
         # Small constant
-        self.small_number = 1.0e-14
+        self.small_number = 1.0e-15
 
 
     def load_species(self, spec_dict, mat_man):
@@ -100,14 +101,14 @@ class reaction_manager:
             if 'Type' not in rxn_info.keys():
                 rxn_info['Type'] = 'Basic'
 
+            # Make reaction model
+            class_ = getattr(reaction_models, reaction_models.rxn_model_dictionary[rxn_info['Type']])
+            my_rxn_model = class_(rxn_info, self)
+
             # Set kinetic parameters
             self.A[i] = rxn_info['A']
             self.EoR[i] = rxn_info['E']/rxn_info['R']
             self.H_rxn[i] = -1.*rxn_info['H']
-
-            # Make reaction model
-            class_ = getattr(reaction_models, reaction_models.rxn_model_dictionary[rxn_info['Type']])
-            my_rxn_model = class_(rxn_info, self)
 
             # Build reactant map
             key_list, val_arr = my_rxn_model.build_reactant_map()
