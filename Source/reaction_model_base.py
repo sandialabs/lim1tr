@@ -13,25 +13,34 @@ import numpy as np
 
 
 class rxn_model:
-    def __init__(self, rxn_info, reac_man):
+    def __init__(self, rxn_info, material_info):
         self.rxn_info = rxn_info
-        self.molecular_weights = reac_man.molecular_weights
-        self.species_name_list = reac_man.species_name_list
+        self.material_info = material_info
+        self.molecular_weights = material_info['Molecular Weights']
+        self.species_name_list = material_info['Names']
         self.n_species = len(self.species_name_list)
-        self.small_number = reac_man.small_number
+        self.small_number = 1.0e-15
+
+        # Set kinetic parameters
+        self.A = rxn_info['A']
+        self.H_rxn = -1.*rxn_info['H']
+        if 'E' not in rxn_info.keys():
+            self.EoR = 0.0
+        else:
+            self.EoR = rxn_info['E']/rxn_info['R']
 
         self.rxn_info['Reactants'] = self.convert_to_mass(self.rxn_info['Reactants'])
         self.rxn_info['Products'] = self.convert_to_mass(self.rxn_info['Products'])
 
         # Make a map from species names to state vector index
         self.name_map = {}
-        for i in range(len(self.species_name_list)):
+        for i in range(self.n_species):
             self.name_map[self.species_name_list[i]] = i
 
-        self.setup(reac_man)
+        self.setup()
 
 
-    def setup(self, reac_man):
+    def setup(self):
         return 0.0
 
 

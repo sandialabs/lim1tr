@@ -34,8 +34,12 @@ def single_rxn_temperature_ramp(plotting=False):
     # Solve reaction system
     n_times = 20
     t_arr = np.linspace(0, time_opts['Run Time'], n_times)
+    v_in = np.zeros(reac_man.n_species + 1)
+    for j in range(len(reac_man.species_name_list)):
+        v_in[j] = reac_man.species_density[reac_man.species_name_list[j]][0]
     T_in = np.array([298.15])
-    sol, nfo = reac_man.solve_ode_node(t_arr, T_in, 0, atol=1e-13, rtol=1e-10)
+    v_in[-1] = T_in[0]
+    sol, sol_status = reac_man.reaction_systems[0].solve_ode_node(t_arr, v_in, atol=1e-13, rtol=1e-10)
 
     # Analytical solution
     T_rate = 5. # C/s
@@ -86,14 +90,15 @@ def short_rxn():
     my_v[-1] = time_opts['T Initial']
 
     # Compute function at base inputs
-    my_f = reac_man.evaluate_ode(0, my_v)
+    reac_sys = reac_man.reaction_systems[0]
+    my_f = reac_sys.evaluate_ode(0, my_v)
 
     # Compute solution
-    my_rxn = reac_man.model_list[0]
+    my_rxn = reac_sys.model_list[0]
     conc_C6Li = 0.13*2000./79.007
     x_C6Li = conc_C6Li*my_rxn.conc_scale
     conc_fun_1 = (np.tanh(my_rxn.t_scale*x_C6Li) + my_rxn.short_slope*x_C6Li)/(1. + my_rxn.short_slope)
-    r_1 = -1.*reac_man.A[0]*conc_fun_1
+    r_1 = -1.*reac_sys.A[0]*conc_fun_1
     err = np.abs(r_1*79.007/(79.007 + 90.931) - my_f[0])
 
     if err > 1e-12:
@@ -119,14 +124,15 @@ def short_rxn_v2():
     my_v[-1] = time_opts['T Initial']
 
     # Compute function at base inputs
-    my_f = reac_man.evaluate_ode(0, my_v)
+    reac_sys = reac_man.reaction_systems[0]
+    my_f = reac_sys.evaluate_ode(0, my_v)
 
     # Compute solution
-    my_rxn = reac_man.model_list[0]
+    my_rxn = reac_sys.model_list[0]
     conc_CoO2 = 0.13*2000./90.931
     x_CoO2 = conc_CoO2*my_rxn.conc_scale
     conc_fun_1 = (np.tanh(my_rxn.t_scale*x_CoO2) + my_rxn.short_slope*x_CoO2)/(1. + my_rxn.short_slope)
-    r_1 = -1.*reac_man.A[0]*conc_fun_1
+    r_1 = -1.*reac_sys.A[0]*conc_fun_1
     err = np.abs(r_1*79.007/(79.007 + 90.931) - my_f[0])
 
     if err > 1e-12:
@@ -152,14 +158,15 @@ def zcrit_rxn():
     my_v[-1] = time_opts['T Initial']
 
     # Compute function at base inputs
-    my_f = reac_man.evaluate_ode(0, my_v)
+    reac_sys = reac_man.reaction_systems[0]
+    my_f = reac_sys.evaluate_ode(0, my_v)
 
     # Compute solution
-    my_rxn = reac_man.model_list[0]
+    my_rxn = reac_sys.model_list[0]
     rho_fun = my_v[my_rxn.name_map['C6Li']]*my_v[my_rxn.name_map['EC']]/(my_rxn.rho_50 + my_v[my_rxn.name_map['EC']])
     crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_v[my_rxn.name_map['Li2CO3']])
     conc_fun_1 = my_rxn.aEdges*rho_fun*crit_fun
-    r_1 = -1.*reac_man.A[0]*conc_fun_1*np.exp(-reac_man.EoR[0]/time_opts['T Initial'])
+    r_1 = -1.*reac_sys.A[0]*conc_fun_1*np.exp(-reac_sys.EoR[0]/time_opts['T Initial'])
     err = np.abs(r_1*2*79.007/(2*79.007 + 88.062) - my_f[0])
 
     if err > 1e-12:
@@ -189,13 +196,15 @@ def fd_check(file_name, grad_check=False):
     for i in range(len(reac_man.species_name_list)):
         my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
     my_v[-1] = time_opts['T Initial']
-    # print(my_v)
+
+    # Get reaction system
+    reac_sys = reac_man.reaction_systems[0]
 
     # Compute Jacobain
-    jac_comp = reac_man.evaluate_jacobian(0, my_v)
+    jac_comp = reac_sys.evaluate_jacobian(0, my_v)
 
     # Compute function at base inputs
-    my_f = reac_man.evaluate_ode(0, my_v)
+    my_f = reac_sys.evaluate_ode(0, my_v)
 
     # Compute Jacobain from finite differences
     if grad_check:
@@ -206,7 +215,7 @@ def fd_check(file_name, grad_check=False):
             for i in range(my_v.shape[0]):
                 tmp_v = np.copy(my_v)
                 tmp_v[i] += du
-                tmp_f = reac_man.evaluate_ode(0, tmp_v)
+                tmp_f = reac_sys.evaluate_ode(0, tmp_v)
                 jac_fin[:,i] = (tmp_f - my_f)/du
             # if up == 5:
             #     print(jac_comp)
@@ -216,8 +225,8 @@ def fd_check(file_name, grad_check=False):
             rel_err = np.zeros(jac_comp.shape)
             N_v = 0
             err = 0.
-            for i in range(reac_man.n_species + 1):
-                for j in range(reac_man.n_species + 1):
+            for i in range(reac_sys.n_species + 1):
+                for j in range(reac_sys.n_species + 1):
                     if np.abs(jac_comp[i,j]) > 1e-15:
                         err_temp = np.abs((jac_comp[i,j] - jac_fin[i,j])/jac_comp[i,j])
                         rel_err[i,j] = err_temp
@@ -234,14 +243,14 @@ def fd_check(file_name, grad_check=False):
         for i in range(my_v.shape[0]):
             tmp_v = np.copy(my_v)
             tmp_v[i] += du
-            tmp_f = reac_man.evaluate_ode(0, tmp_v)
+            tmp_f = reac_sys.evaluate_ode(0, tmp_v)
             jac_fin[:,i] = (tmp_f - my_f)/du
 
         # Compute relative error
         N_v = 0
         err = 0.
-        for i in range(reac_man.n_species + 1):
-            for j in range(reac_man.n_species + 1):
+        for i in range(reac_sys.n_species + 1):
+            for j in range(reac_sys.n_species + 1):
                 if np.abs(jac_comp[i,j]) > 1e-15:
                     err += np.abs((jac_comp[i,j] - jac_fin[i,j])/jac_comp[i,j])
                     N_v += 1

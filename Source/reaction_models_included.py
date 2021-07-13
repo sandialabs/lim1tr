@@ -20,7 +20,7 @@ rxn_model_dictionary_included = {
 }
 
 class basic_rxn(reaction_model_base.rxn_model):
-    def setup(self, reac_man):
+    def setup(self):
         key_list, val_arr = self.build_species_map('Orders')
         self.orders = np.zeros(self.n_species)
         self.orders[key_list] = val_arr
@@ -47,7 +47,7 @@ class basic_rxn(reaction_model_base.rxn_model):
 
 
 class tanh_short(reaction_model_base.rxn_model):
-    def setup(self, reac_man):
+    def setup(self):
         '''Setup: there are several constants we can make to cut down on operations
         in the concentration function evaluation
         '''
@@ -93,8 +93,8 @@ class tanh_short(reaction_model_base.rxn_model):
 
 
 class zcrit(reaction_model_base.rxn_model):
-    def setup(self, reac_man):
-        self.rho = reac_man.rho
+    def setup(self):
+        self.rho = self.material_info['rho']
         BET_C6 = self.rxn_info['BET_C6']
         self.tau_crit = self.rxn_info['tau_crit']
         self.C_t = self.rxn_info['C_t']
