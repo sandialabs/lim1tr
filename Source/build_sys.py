@@ -25,7 +25,7 @@ class conduction_manager:
         self.dx_arr  = grid_man.dx_arr
         self.idx_arr = np.reciprocal( self.dx_arr ) 
 
-        self.n_mats = grid_man.n_mats
+        self.n_layers = grid_man.n_layers
         self.n_tot = grid_man.n_tot
         self.k_arr = np.zeros(self.n_tot - 1)
 
@@ -41,7 +41,7 @@ class conduction_manager:
             mat_man (object): material manager object
         '''
         # Internal nodes
-        for m in range(self.n_mats):
+        for m in range(self.n_layers):
             # Save off bounds
             bnds = self.internal_bounds[m]
 
@@ -69,7 +69,7 @@ class conduction_manager:
         eqn_sys.LHS_c[self.n_tot-1] += mat_man.k_arr[self.n_tot-2]/self.dx_arr[self.n_tot-1]
 
         # Material interfaces
-        for m in range(self.n_mats - 1):
+        for m in range(self.n_layers - 1):
             # Interface left node
             i_n = self.k_bounds[m][1]
 
@@ -105,7 +105,7 @@ class conduction_manager:
             T       (array)  : temperature at previous step
         '''        
         # Internal nodes
-        for m in range(self.n_mats):
+        for m in range(self.n_layers):
             # Save off bounds
             bnds = self.internal_bounds[m]
 
@@ -121,7 +121,7 @@ class conduction_manager:
         eqn_sys.RHS[n] += mat_man.k_arr[n-1]*(T[n-1] - T[n])*self.idx_arr[n]
 
         # Material interfaces
-        for m in range(self.n_mats - 1):
+        for m in range(self.n_layers - 1):
             # Interface left node
             i_n = self.k_bounds[m][1]
 

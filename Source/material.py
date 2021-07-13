@@ -31,8 +31,9 @@ class material_manager:
         '''
         self.dx_arr = grid_man.dx_arr
         self.mat_nodes = grid_man.mat_nodes
+        self.layer_names = grid_man.layer_names
 
-        self.n_mats = grid_man.n_mats
+        self.n_layers = grid_man.n_layers
         self.n_tot = grid_man.n_tot
 
         self.rho_arr = np.zeros(self.n_tot)
@@ -85,7 +86,7 @@ class material_manager:
 
         # Evaluate interface properties
         # Internal interfaces
-        for m in range(self.n_mats):
+        for m in range(self.n_layers):
             # Save off bounds
             bnds = self.k_bounds[m]
 
@@ -93,7 +94,7 @@ class material_manager:
                 self.k_arr[i] = self.get_material(self.mat_nodes[i]).eval_k()
 
         # Material interfaces
-        for m in range(self.n_mats - 1):
+        for m in range(self.n_layers - 1):
             # Material interface node
             i_n = self.k_bounds[m][1]
 

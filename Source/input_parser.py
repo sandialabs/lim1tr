@@ -66,6 +66,7 @@ class input_parser:
         # Domain table
         grid_man = grid.grid_manager()
         self.load_table(grid_man)
+        grid_man.setup_grid()
 
         # Materials
         mat_man = material.material_manager()
@@ -106,6 +107,30 @@ class input_parser:
         return mat_man, grid_man, bc_man, reac_man, data_man, time_opts
 
 
+    def load_table(self, grid_man):
+        '''Load domain information
+
+        Args:
+            grid_man (object): grid manager
+        '''
+        tab_dict = self.cap_dict['Domain Table']
+
+        # Check that each list has the same number of entries
+        layer_names = tab_dict['Material Name']
+        n_layers = len(layer_names)
+        for key in tab_dict:
+            if 'Contact Resistance' in key:
+                n_mod = n_layers - 1
+            else:
+                n_mod = 1.*n_layers
+            if n_mod != len(tab_dict[key]):
+                err_str = 'Incorrect number of entries on {} line'.format(key)
+                raise ValueError(err_str)
+
+        # Set the table values on the grid manager
+        grid_man.set_table(tab_dict)
+
+
     def load_materials(self, mat_man, grid_man):
         '''Parse material info from the input file.
 
@@ -127,68 +152,8 @@ class input_parser:
         if 'Contact Resistance' in self.cap_dict['Domain Table'].keys():
             mat_man.cont_res = np.asarray(self.cap_dict['Domain Table']['Contact Resistance'])
         else:
-            mat_man.cont_res = np.zeros(grid_man.n_mats-1)
+            mat_man.cont_res = np.zeros(grid_man.n_layers-1)
         mat_man.add_mesh(grid_man)
-
-
-    def load_table(self, grid_man):
-        '''Load domain information
-
-        Args:
-            grid_man (object): grid manager
-        '''
-        tab_dict = self.cap_dict['Domain Table']
-
-        # Check that each list has the same number of entries
-        n_layers = len(tab_dict['Material Name'])
-        for key in tab_dict:
-            if 'Contact Resistance' in key:
-                n_mod = n_layers - 1
-            else:
-                n_mod = 1.*n_layers
-            if n_mod != len(tab_dict[key]):
-                err_str = 'Incorrect number of entries on {} line'.format(key)
-                raise ValueError(err_str)
-
-        # Loop through material layers
-        n_tot = 0
-        mat_nodes = []
-        mint_list = []
-        dx_list = []
-        for i in range(n_layers):
-            if tab_dict['Thickness'][i] < tab_dict['dx'][i]:
-                err_str = 'Requested dx on layer {} is greater than the thickness.'.format(i)
-                raise ValueError(err_str)
-
-            # Calculate number of nodes
-            n_m = int(np.round(tab_dict['Thickness'][i]/tab_dict['dx'][i],0))
-
-            # Total up nodes
-            n_tot += n_m
-
-            # Acutal dx
-            dx_m = tab_dict['Thickness'][i]/n_m
-            dx_list.append(dx_m)
-
-            # Material type list
-            mat_nodes += n_m*[str(tab_dict['Material Name'][i])]
-
-            # Save node number on the left of each interface (includes right domain bc)
-            mint_list.append(n_tot - 1)
-
-        # Build dx array at each node
-        dx_arr = np.zeros(n_tot)
-        m = 0
-        for i in range(n_tot):
-            dx_arr[i] = dx_list[m]
-            if i == mint_list[m]:
-                m += 1
-
-        # Recast list of material types as an array
-        mat_nodes = np.asarray(mat_nodes)
-
-        # Setup grid object
-        grid_man.setup_grid(dx_arr, mat_nodes, mint_list)
 
 
     def load_bc(self, bc_man):
@@ -247,12 +212,12 @@ class input_parser:
 
         # Set initial temperature
         if type(time_dict['T Initial']) is list:
-            if len(time_dict['T Initial']) != grid_man.n_mats:
-                err_str = 'Number of initial temperatures does not match number of materials.'
+            if len(time_dict['T Initial']) != grid_man.n_layers:
+                err_str = 'Number of initial temperatures does not match number of layers.'
                 raise ValueError(err_str)
             temp_init = np.zeros(grid_man.n_tot)
             n_start = 0
-            for m in range(grid_man.n_mats):
+            for m in range(grid_man.n_layers):
                 n_end = grid_man.mint_list[m] + 1
                 temp_init[n_start:n_end] = time_dict['T Initial'][m]
                 n_start = 1*n_end

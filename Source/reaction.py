@@ -89,6 +89,20 @@ class reaction_manager:
         self.material_info['rho'] = self.rho
         self.material_info['cp'] = self.cp
 
+        # Get number of cells
+        self.n_cells = 0
+        for layer_name in mat_man.layer_names:
+            if self.mat_name == layer_name:
+                self.n_cells += 1
+
+        # Set up domain where reactions are present
+        self.setup_active_domain()
+
+
+    def setup_active_domain(self):
+        # Make a list of the indices of only the active nodes (will be updated upon depletion of reactants)
+        return 0
+
 
     def load_reactions(self, rxn_dict):
         self.n_rxn = len(rxn_dict.keys())
@@ -98,8 +112,11 @@ class reaction_manager:
         #   frac_mat: converts reaction rates from total conversion to specific species
         frac_mat = np.zeros([self.n_species, self.n_rxn])
         self.model_list = []
+        active_cells = np.zeros([self.n_rxn, self.n_cells], dtype=int)
         for i in range(self.n_rxn):
             rxn_info = rxn_dict[rxn_nums[i]]
+
+            # Use Basic reaction if none specified
             if 'Type' not in rxn_info.keys():
                 rxn_info['Type'] = 'Basic'
 
@@ -117,12 +134,62 @@ class reaction_manager:
 
             self.model_list.append(my_rxn_model)
 
+            # Get active cells
+            if 'Active Cells' not in rxn_info.keys():
+                active_cells[i,:] = np.ones(self.n_cells, dtype=int)
+            else:
+                for cell_num in rxn_info['Active Cells']:
+                    active_cells[i,cell_num-1] = 1
+
         # Determine the number of unique reaction systems
+        self.find_unique_systems(active_cells)
 
         # Construct reaction systems by pulling out models and columns of frac_mat
         self.reaction_systems = []
-        self.reaction_systems.append(reaction_system.reaction_system(
-            frac_mat, self.model_list, self.rho_cp, self.dsc_info))
+        for i in range(len(self.unique_system_list)):
+            tmp_sys = self.unique_system_list[i]
+            rxn_inds = [j for j in range(tmp_sys.shape[0]) if tmp_sys[j]]
+            model_sub_list = [self.model_list[j] for j in range(tmp_sys.shape[0]) if tmp_sys[j]]
+            self.reaction_systems.append(reaction_system.reaction_system(
+                frac_mat[:,rxn_inds], model_sub_list, self.rho_cp, self.dsc_info))
+
+
+    def find_unique_systems(self, active_cells):
+        '''Finds and indexes all unique reaction systems
+        '''
+        self.system_index = np.zeros(self.n_cells, dtype=int)
+        self.unique_system_list = [active_cells[:,0]]
+        for i in range(1, self.n_cells):
+            system_exists = self.check_system_exists(active_cells[:,i])
+            if system_exists:
+                self.system_index[i] = self.get_system_index(active_cells[:,i])
+            else:
+                self.system_index[i] = len(self.unique_system_list)
+                self.unique_system_list.append(active_cells[:,i])
+
+
+    def check_system_exists(self, my_system):
+        system_exists = False
+        for a_system in self.unique_system_list:
+            num_diffs = np.sum(np.abs(my_system - a_system))
+            if num_diffs == 0:
+                system_exists = True
+                break
+        return system_exists
+
+
+    def get_system_index(self, my_system):
+        system_index = -1
+        for j in range(len(self.unique_system_list)):
+            a_system = self.unique_system_list[j]
+            num_diffs = np.sum(np.abs(my_system - a_system))
+            if num_diffs == 0:
+                system_index = j
+                break
+        if system_index == -1:
+            err_str = 'Reaction system not found in unique system list.'
+            raise ValueError(err_str)
+        return system_index
 
 
     def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-6, atol=1e-6, rtol=1e-6, nsteps=5000, return_err=False):

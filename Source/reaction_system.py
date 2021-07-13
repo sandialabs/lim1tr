@@ -63,7 +63,7 @@ class reaction_system:
         For DSC, dT/dt is fixed, so we use the linear temperature ODE
         '''
         # Calculate rate constant (array of length n_rxn)
-        my_k = self.A*np.exp(-self.EoR/my_v[-1])
+        my_k = self.evaluate_rate_constant(my_v)
 
         # Calculate concentration function for each rxn
         my_conc = self.evaluate_concentration_functions(my_v)
@@ -83,22 +83,28 @@ class reaction_system:
 
     def evaluate_jacobian(self, t, my_v):
         # Calculate rate constant (array of length n_rxn)
-        my_k = self.A*np.exp(-self.EoR/my_v[-1])
+        my_k = self.evaluate_rate_constant(my_v)
 
         # Calculate concentration function for each rxn
         my_conc = self.evaluate_concentration_functions(my_v)
 
         # Derivative of reactions w.r.t states
-        my_dr_part = np.zeros([self.n_species+1, self.n_rxn])
-        for ii in range(self.n_rxn):
-            my_dr_part[:self.n_species,ii] = self.model_list[ii].concentration_derivative(my_v)
-        my_dr_part[self.n_species,:] = my_conc*self.EoR/my_v[-1]**2
-        dr_dv = my_dr_part*my_k
+        dr_dv = self.evaluate_concentration_derivatives(my_v)
+        dr_dv[self.n_species,:] = my_conc*self.evaluate_rate_constant_derivative(my_v)
+        dr_dv = dr_dv*my_k
 
         # Compute Jacobian
         d_jac = np.dot(self.aug_mat, dr_dv.T)
 
         return d_jac
+
+
+    def evaluate_rate_constant(self, my_v):
+        return self.A*np.exp(-self.EoR/my_v[-1])
+
+
+    def evaluate_rate_constant_derivative(self, my_v):
+        return self.EoR/my_v[-1]**2
 
 
     def evaluate_concentration_functions(self, my_v):
@@ -108,6 +114,16 @@ class reaction_system:
         for ii in range(self.n_rxn):
             my_conc[ii] = self.model_list[ii].concentration_function(my_v)
         return my_conc
+
+
+    def evaluate_concentration_derivatives(self, my_v):
+        '''Loop through reactions and evaluate
+        the derivative of the concentration
+        function w.r.t. each species'''
+        dr_dv = np.zeros([self.n_species+1, self.n_rxn])
+        for ii in range(self.n_rxn):
+            dr_dv[:self.n_species,ii] = self.model_list[ii].concentration_derivative(my_v)
+        return dr_dv
 
 
     def rxn_temperature(self, my_r):

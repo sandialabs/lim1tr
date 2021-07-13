@@ -14,6 +14,8 @@ import time, sys, os
 from scipy.special import expi
 sys.path.append('../Source')
 import input_parser
+import reaction
+import unit_mocks
 
 import matplotlib as mpl
 mpl.use( 'Agg' )
@@ -263,6 +265,89 @@ def fd_check(file_name, grad_check=False):
             return 1
 
 
+def one_unique_system_test():
+    print('Testing unique reaction system identification for 1 reaction system...')
+    grid_mock = unit_mocks.grid_mock()
+    reac_man = reaction.reaction_manager(grid_mock, unit_mocks.other_mock)
+    reac_man.n_rxn = 3
+    reac_man.n_cells = 5
+    active_cells = np.ones([reac_man.n_rxn, reac_man.n_cells], dtype=int)
+    reac_man.find_unique_systems(active_cells)
+    true_system_index = np.zeros(reac_man.n_cells, dtype=int)
+    true_unique_system_list = [np.ones(reac_man.n_rxn, dtype=int)]
+
+    test_passed = verify_unique_system_test(true_system_index, true_unique_system_list,
+        reac_man.system_index, reac_man.unique_system_list)
+    if test_passed:
+        print('\tPassed\n')
+    return test_passed
+
+
+def two_unique_system_test():
+    print('Testing unique reaction system identification for 2 reaction systems...')
+    grid_mock = unit_mocks.grid_mock()
+    reac_man = reaction.reaction_manager(grid_mock, unit_mocks.other_mock)
+    reac_man.n_rxn = 3
+    reac_man.n_cells = 5
+    active_cells = np.ones([reac_man.n_rxn, reac_man.n_cells], dtype=int)
+    active_cells[:,0] = [1,1,0]
+    active_cells[:,3] = [1,1,0]
+    reac_man.find_unique_systems(active_cells)
+    true_system_index = np.array([0,1,1,0,1], dtype=int)
+    true_unique_system_list = [np.array([1,1,0], dtype=int),
+        np.ones(reac_man.n_rxn, dtype=int)]
+
+    test_passed = verify_unique_system_test(true_system_index, true_unique_system_list,
+        reac_man.system_index, reac_man.unique_system_list)
+    if test_passed:
+        print('\tPassed\n')
+    return test_passed
+
+
+def three_unique_system_test():
+    print('Testing unique reaction system identification for 3 reaction systems...')
+    grid_mock = unit_mocks.grid_mock()
+    reac_man = reaction.reaction_manager(grid_mock, unit_mocks.other_mock)
+    reac_man.n_rxn = 3
+    reac_man.n_cells = 5
+    active_cells = np.ones([reac_man.n_rxn, reac_man.n_cells], dtype=int)
+    active_cells[:,0] = [1,1,0]
+    active_cells[:,3] = [1,1,0]
+    active_cells[:,4] = [0,0,1]
+    reac_man.find_unique_systems(active_cells)
+    true_system_index = np.array([0,1,1,0,2], dtype=int)
+    true_unique_system_list = [np.array([1,1,0], dtype=int),
+        np.ones(reac_man.n_rxn, dtype=int),
+        np.array([0,0,1], dtype=int)]
+
+    test_passed = verify_unique_system_test(true_system_index, true_unique_system_list,
+        reac_man.system_index, reac_man.unique_system_list)
+    if test_passed:
+        print('\tPassed\n')
+    return test_passed
+
+
+def verify_unique_system_test(true_index, true_list, reac_index, reac_list):
+    test_passed = 1
+    for i in range(true_index.shape[0]):
+        if true_index[i] != reac_index[i]:
+            test_passed = 0
+            print('\tFailed: reaction system index incorrect.\n')
+            return test_passed
+    if len(true_list) != len(reac_list):
+        test_passed = 0
+        print('\tFailed: incorrect number of unique reactions found.\n')
+        return test_passed
+    for i in range(len(true_list)):
+        for j in range(true_list[i].shape[0]):
+            if true_list[i][j] != reac_list[i][j]:
+                test_passed = 0
+                print('\tFailed: incorrect unique reaction list.\n')
+                return test_passed
+
+    return test_passed
+
+
 if __name__ == '__main__':
     single_rxn_temperature_ramp(plotting=True)
 
@@ -283,3 +368,9 @@ if __name__ == '__main__':
     fd_check('anode_only', grad_check=True)
 
     zcrit_rxn()
+
+    one_unique_system_test()
+
+    two_unique_system_test()
+
+    three_unique_system_test()

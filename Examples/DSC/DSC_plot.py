@@ -50,7 +50,7 @@ for key in sei_keys:
 for key in anode_keys:
     plt.plot(my_data['Time'], my_data[key], label=key)
 plt.xlabel('Time (s)')
-plt.ylabel('Density (kg/m3)')
+plt.ylabel(r'Density (kg/m$^3$)')
 plt.legend(loc=2)
 plt.savefig('Densities.png', bbox_inches='tight')
 plt.close()

@@ -58,5 +58,10 @@ test_status.append(reaction_test.short_rxn())
 test_status.append(reaction_test.short_rxn_v2())
 test_status.append(reaction_test.zcrit_rxn())
 
+# Reaction manager tests
+test_status.append(reaction_test.one_unique_system_test())
+test_status.append(reaction_test.two_unique_system_test())
+test_status.append(reaction_test.three_unique_system_test())
+
 print('Complete')
 print('Passed {} of {} tests in {:0.3f} seconds.'.format(sum(test_status), len(test_status), time.time() - start_time))
