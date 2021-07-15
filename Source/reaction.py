@@ -96,12 +96,8 @@ class reaction_manager:
                 self.n_cells += 1
 
         # Set up domain where reactions are present
-        self.setup_active_domain()
-
-
-    def setup_active_domain(self):
-        # Make a list of the indices of only the active nodes (will be updated upon depletion of reactants)
-        return 0
+        self.active_nodes = np.argwhere(self.mat_nodes == self.mat_name).flatten()
+        self.inactive_node_index = []
 
 
     def load_reactions(self, rxn_dict):
@@ -196,42 +192,74 @@ class reaction_manager:
         '''Solve the system of ODEs at each node
         This is the main function called from the transient loop
         '''
-        T_out = np.zeros(self.n_tot)
+        T_out = np.copy(T_in)
+
+        # Clear nodes that were previously deactivated
+        if len(self.inactive_node_index) > 0:
+            self.clear_nodes()
+
+        # Loop over all active nodes
         err_list = []
-        for i in range(self.n_tot):
-            if self.mat_name == self.mat_nodes[i]:
-                # Create input array
-                v_in = np.zeros(self.n_species + 1)
+        for act_ind in range(self.active_nodes.shape[0]):
+            i = self.active_nodes[act_ind]
 
-                # Set species starting values
-                for j in range(len(self.species_name_list)):
-                    v_in[j] = self.species_density[self.species_name_list[j]][i]
+            # Create input array
+            v_in = np.zeros(self.n_species + 1)
 
-                # Set temperature starting value
-                v_in[-1] = T_in[i]
+            # Set species starting values
+            for j in range(len(self.species_name_list)):
+                v_in[j] = self.species_density[self.species_name_list[j]][i]
 
-                # Solve system
-                my_sol, my_status = self.reaction_systems[0].solve_ode_node(
-                    t_arr, v_in, dt0=dt0, atol=atol, rtol=rtol, nsteps=nsteps)
-                if return_err:
-                    err_list.append(my_status)
+            # Set temperature starting value
+            v_in[-1] = T_in[i]
 
-                # Update densities
-                for j in range(len(self.species_name_list)):
-                    self.species_density[self.species_name_list[j]][i] = np.copy(my_sol[-1,j])
+            # Solve system
+            my_sol, my_status = self.reaction_systems[0].solve_ode_node(
+                t_arr, v_in, dt0=dt0, atol=atol, rtol=rtol, nsteps=nsteps)
+            if return_err:
+                err_list.append(my_status)
 
-                # Get rates
-                rate_arr = self.reaction_systems[0].get_rates(my_sol[-1,:])
+            # Update densities
+            for j in range(len(self.species_name_list)):
+                self.species_density[self.species_name_list[j]][i] = np.copy(my_sol[-1,j])
 
-                # Update rates
-                for j in range(len(self.species_name_list)):
-                    self.species_rate[self.species_name_list[j]][i] = np.copy(rate_arr[j])
-                self.temperature_rate[i] = np.copy(rate_arr[-1])
-                self.heat_release_rate[i] = np.copy(rate_arr[-1])*self.rho_cp
+            # Get rates
+            rate_arr = self.reaction_systems[0].get_rates(my_sol[-1,:])
 
-                # Save temperature
-                T_out[i] = np.copy(my_sol[-1,-1])
-            else:
-                T_out[i] = np.copy(T_in[i])
+            # Update rates
+            for j in range(len(self.species_name_list)):
+                self.species_rate[self.species_name_list[j]][i] = np.copy(rate_arr[j])
+            self.temperature_rate[i] = np.copy(rate_arr[-1])
+            self.heat_release_rate[i] = np.copy(rate_arr[-1])*self.rho_cp
+
+            # Save temperature
+            T_out[i] = np.copy(my_sol[-1,-1])
+
+            # Check for reactant exhaustion
+            is_complete = self.reaction_systems[0].check_complete(my_sol[-1,:])
+            if is_complete:
+                self.inactive_node_index.append(act_ind)
 
         return T_out, err_list
+
+
+    def clear_nodes(self):
+        '''Clear out exhausted species and rates for nodes
+        who's reaction systems completed last time step.
+        '''
+        for act_ind in self.inactive_node_index:
+            i = self.active_nodes[act_ind]
+            # Clear exhausted species
+            for j in range(len(self.species_name_list)):
+                if self.species_density[self.species_name_list[j]][i] < self.small_number:
+                    self.species_density[self.species_name_list[j]][i] = 0.0
+
+            # Clear rates
+            for j in range(len(self.species_name_list)):
+                self.species_rate[self.species_name_list[j]][i] = 0.0
+            self.temperature_rate[i] = 0.0
+            self.heat_release_rate[i] = 0.0
+
+        # Remove nodes from active nodes
+        self.active_nodes = np.delete(self.active_nodes, self.inactive_node_index)
+        self.inactive_node_index = []

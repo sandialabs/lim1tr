@@ -20,6 +20,7 @@ class reaction_system:
         self.frac_mat = frac_mat
         self.model_list = model_list
         self.rho_cp = rho_cp
+        self.small_number = 1e-15
 
         self.dsc_mode = dsc_info[0]
         self.dsc_rate = dsc_info[1]
@@ -149,3 +150,17 @@ class reaction_system:
             self.temperature_ode = self.linear_temperature
 
         return rate_arr
+
+
+    def check_complete(self, my_v):
+        '''Go through all models and check if reaction is complete
+        or can still make progress
+        '''
+        is_complete = True
+        my_conc = self.evaluate_concentration_functions(my_v)
+        for ii in range(self.n_rxn):
+            if my_conc[ii] > self.small_number:
+                is_complete = False
+                break
+
+        return is_complete
