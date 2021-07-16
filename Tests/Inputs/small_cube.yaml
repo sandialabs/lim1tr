@@ -1,0 +1,29 @@
+Materials:
+    A:
+        k: 1.
+        rho: 2000.
+        cp: 500.
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.01]
+    dx: [0.005]
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Adiabatic
+    Right:
+        Type: Adiabatic
+
+Time:
+    Run Time: 10.
+    T Initial: 300
+    dt: 0.1
+    Print Progress: 0
+    Order: 2
+
+Other:
+    Y Dimension: 0.01
+    Z Dimension: 0.01

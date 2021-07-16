@@ -91,7 +91,7 @@ def bc_apply_test():
     bc_man.PA_r = PA_r
 
     # Apply boundary terms
-    bc_man.apply(eqn_sys, mat_man)
+    bc_man.apply(eqn_sys, mat_man, 0)
 
     phi_left = 2*k_a/dx_a
     c_left = h_left*phi_left/(h_left + phi_left)

@@ -75,7 +75,7 @@ class eqn_sys:
         cond_man.apply(self, mat_man)
 
         # Apply boundary terms
-        bc_man.apply(self, mat_man)
+        bc_man.apply(self, mat_man, 0)
 
         # Solve system
         self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
@@ -191,14 +191,14 @@ class eqn_sys:
         cond_man.apply(self, mat_man)
 
         # Apply boundary terms
-        bc_man.apply(self, mat_man)
+        bc_man.apply(self, mat_man, t_int.tot_time)
 
         # Apply stepper
         if(t_int.order == 1):
             t_int.apply_BDF1(self, mat_man, split_step)
         elif(t_int.order == 2):
             cond_man.apply_operator(self, mat_man, t_int.T_star)
-            bc_man.apply_operator(self, mat_man, t_int.T_star)
+            bc_man.apply_operator(self, mat_man, t_int.T_star, t_int.tot_time)
             t_int.apply_CN(self, mat_man, split_step)
 
 

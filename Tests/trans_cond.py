@@ -190,6 +190,33 @@ def trans_end_flux_cn(plotting=False):
         return 1
 
 
+def deactivate_bcs_test():
+    # Build model
+    file_name = os.getcwd() + '/Inputs/small_cube.yaml'
+    model = main_fv.lim1tr_model(file_name)
+
+    # Set steady flux on all BCs
+    flux_bnd = {'Type': 'Heat Flux',
+        'Flux': 10000.,
+        'Deactivation Time': 5}
+    bnd_dict = {'External': {'Type': 'Adiabatic'},
+        'Left': flux_bnd,
+        'Right': flux_bnd}
+    model.parser.cap_dict['Boundary'] = bnd_dict
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+
+    dT_rate = 2*10000/(0.01*2000*500)
+    T_true = 300 + dT_rate*5
+
+    err = abs(T_true - eqn_sys.T_lin[0])
+
+    if err > 1e-13:
+        print('\tFailed with RMSE {:0.2e}\n'.format(err))
+        return 0
+    else:
+        print('\tPassed\n')
+        return 1
+
 if __name__ == '__main__':
     trans_end_conv_bdf1(plotting=True)
     trans_end_conv_cn(plotting=True)
@@ -202,3 +229,5 @@ if __name__ == '__main__':
     trans_ext_conv_cn_split()
 
     trans_end_flux_cn(plotting=True)
+
+    deactivate_bcs_test()

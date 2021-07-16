@@ -49,6 +49,7 @@ test_status.append(trans_cond.trans_ext_conv_cn())
 test_status.append(trans_cond.trans_ext_conv_bdf1_split())
 test_status.append(trans_cond.trans_ext_conv_cn_split())
 test_status.append(trans_cond.trans_end_flux_cn())
+test_status.append(trans_cond.deactivate_bcs_test())
 
 # Single reaction tests
 test_status.append(reaction_test.single_rxn_temperature_ramp())
