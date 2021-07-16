@@ -78,3 +78,11 @@ class grid_manager:
         self.x_node = np.zeros(self.n_tot)
         for i in range(self.n_tot):
             self.x_node[i] = 0.5*self.dx_arr[i] + np.sum(self.dx_arr[:i])
+
+
+    def set_PA_r(self, oth_dict):
+        '''Calculate the perimeter to cross-sectional area ratio.
+        '''
+        L_y = oth_dict['Y Dimension']
+        L_z = oth_dict['Z Dimension']
+        self.PA_r = 2.*(L_y + L_z)/(L_y*L_z)

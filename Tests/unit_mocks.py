@@ -35,3 +35,4 @@ class grid_mock:
         self.x_node = np.zeros(self.n_tot)
         for i in range(self.n_tot):
             self.x_node[i] = 0.5*self.dx_arr[i] + np.sum(self.dx_arr[:i])
+        self.PA_r = 0.5

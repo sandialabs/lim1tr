@@ -47,12 +47,18 @@ def simple_steady_cond(plotting=False):
     model = main_fv.lim1tr_model(file_name)
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
+    # Pull constants out of parser
+    h_left = model.parser.cap_dict['Boundary']['Left']['h']
+    h_right = model.parser.cap_dict['Boundary']['Right']['h']
+    T_left = model.parser.cap_dict['Boundary']['Left']['T']
+    T_right = model.parser.cap_dict['Boundary']['Right']['T']
+
     # Answer should be a line
     Lx = np.sum(grid_man.dx_arr)
-    r_tot = (1./bc_man.h_left) + (Lx/mat_man.k_arr[0]) + (1./bc_man.h_right)
-    q_c = (bc_man.T_left - bc_man.T_right)/r_tot
-    T_1 = bc_man.T_left - q_c/bc_man.h_left
-    T_2 = bc_man.T_right + q_c/bc_man.h_right
+    r_tot = (1./h_left) + (Lx/mat_man.k_arr[0]) + (1./h_right)
+    q_c = (T_left - T_right)/r_tot
+    T_1 = T_left - q_c/h_left
+    T_2 = T_right + q_c/h_right
     x_arr = np.array([0, Lx])
     T_arr = np.array([T_1, T_2])
     T_ans = np.interp(grid_man.x_node, x_arr, T_arr)
@@ -79,10 +85,12 @@ def end_conv_steady_cond(plotting=False):
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
     # Analytical soln
+    T_left = model.parser.cap_dict['Boundary']['Left']['T']
+    T_right = model.parser.cap_dict['Boundary']['Right']['T']
     r_tot = (2./100.) + np.sum(grid_man.dx_arr)/mat_man.k_arr[0]
-    q_flux = (bc_man.T_left - bc_man.T_right)/r_tot
-    T_o = bc_man.T_left - q_flux/100.
-    T_l = bc_man.T_right + q_flux/100.
+    q_flux = (T_left - T_right)/r_tot
+    T_o = T_left - q_flux/100.
+    T_l = T_right + q_flux/100.
     T_ans = T_o - (q_flux/mat_man.k_arr[0])*grid_man.x_node
 
     err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
@@ -107,10 +115,13 @@ def end_conv_steady_cond_stack(plotting=False):
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
     # Analytical soln
+    h_left = model.parser.cap_dict['Boundary']['Left']['h']
+    T_left = model.parser.cap_dict['Boundary']['Left']['T']
+    T_right = model.parser.cap_dict['Boundary']['Right']['T']
     r_tot = 2*(0.1/10.) + 0.1/2. + 2./10000.
-    q_flux = (bc_man.T_left - bc_man.T_right)/r_tot
+    q_flux = (T_left - T_right)/r_tot
     T_b = np.zeros(4)
-    T_b[0] = bc_man.T_left - q_flux/bc_man.h_left
+    T_b[0] = T_left - q_flux/h_left
     T_b[1] = T_b[0] - q_flux*0.1/10.
     T_b[2] = T_b[1] - q_flux*0.1/2.
     T_b[3] = T_b[2] - q_flux*0.1/10.
@@ -138,16 +149,21 @@ def exterior_steady_cond(plotting=False):
     model = main_fv.lim1tr_model(file_name)
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
+    h_left = model.parser.cap_dict['Boundary']['Left']['h']
+    T_left = model.parser.cap_dict['Boundary']['Left']['T']
+    h_ext = model.parser.cap_dict['Boundary']['External']['h']
+    T_ext = model.parser.cap_dict['Boundary']['External']['T']
+
     # Analytical soln (Incropera 6th edition, p. 144)
     dy = 0.2
     dz = 0.1
     P = 2*(dy + dz)
     A_c = dy*dz
     L_x = np.sum(grid_man.dx_arr)
-    C_m = np.sqrt(bc_man.h_ext*bc_man.PA_r/mat_man.k_arr[0])
+    C_m = np.sqrt(h_ext*bc_man.PA_r/mat_man.k_arr[0])
     s_grid = grid_man.x_node
-    C_1 = 1./((1. + np.exp(C_m*L_x)) - (mat_man.k_arr[0]*C_m/bc_man.h_left)*(1. - np.exp(C_m*L_x)))
-    T_ans = bc_man.T_ext + (bc_man.T_left - bc_man.T_ext)*C_1*(np.exp(C_m*s_grid) + np.exp(C_m*(L_x - s_grid)))
+    C_1 = 1./((1. + np.exp(C_m*L_x)) - (mat_man.k_arr[0]*C_m/h_left)*(1. - np.exp(C_m*L_x)))
+    T_ans = T_ext + (T_left - T_ext)*C_1*(np.exp(C_m*s_grid) + np.exp(C_m*(L_x - s_grid)))
 
     err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
     if plotting:
@@ -170,13 +186,18 @@ def contact_resistance(plotting=False):
     model = main_fv.lim1tr_model(file_name)
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
+    h_left = model.parser.cap_dict['Boundary']['Left']['h']
+    h_right = model.parser.cap_dict['Boundary']['Right']['h']
+    T_left = model.parser.cap_dict['Boundary']['Left']['T']
+    T_right = model.parser.cap_dict['Boundary']['Right']['T']
+
     # Analytical soln
     R_1 = 1./100.
     R_2 = 2./100.
     mat_nodes = int(grid_man.x_node.shape[0]/3.)
-    r_tot = 2*(0.1/10.) + 0.1/2. + 1./bc_man.h_left + 1./bc_man.h_right + R_1 + R_2
-    q_flux = (bc_man.T_left - bc_man.T_right)/r_tot
-    T_1 = bc_man.T_left - q_flux/bc_man.h_left
+    r_tot = 2*(0.1/10.) + 0.1/2. + 1./h_left + 1./h_right + R_1 + R_2
+    q_flux = (T_left - T_right)/r_tot
+    T_1 = T_left - q_flux/h_left
     T_2 = T_1 - q_flux*0.1/10.
     T_3 = T_2 - q_flux*R_1
     T_4 = T_3 - q_flux*0.1/2.
@@ -208,10 +229,14 @@ def left_flux_right_conv(plotting=False):
     model = main_fv.lim1tr_model(file_name)
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
+    flux_left = model.parser.cap_dict['Boundary']['Left']['Flux']
+    h_right = model.parser.cap_dict['Boundary']['Right']['h']
+    T_right = model.parser.cap_dict['Boundary']['Right']['T']
+
     # Analytical soln
     L_x = np.sum(grid_man.dx_arr)
-    T_r = bc_man.T_right + bc_man.flux_left/bc_man.h_right
-    T_l = T_r + bc_man.flux_left*L_x/mat_man.k_arr[0]
+    T_r = T_right + flux_left/h_right
+    T_l = T_r + flux_left*L_x/mat_man.k_arr[0]
     T_ans = T_l + grid_man.x_node*(T_r - T_l)/L_x
 
     err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
@@ -235,10 +260,14 @@ def left_conv_right_flux(plotting=False):
     model = main_fv.lim1tr_model(file_name)
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
 
+    h_left = model.parser.cap_dict['Boundary']['Left']['h']
+    T_left = model.parser.cap_dict['Boundary']['Left']['T']
+    flux_right = model.parser.cap_dict['Boundary']['Right']['Flux']
+
     # Analytical soln
     L_x = np.sum(grid_man.dx_arr)
-    T_l = bc_man.T_left + bc_man.flux_right/bc_man.h_left
-    T_r = T_l + bc_man.flux_right*L_x/mat_man.k_arr[0]
+    T_l = T_left + flux_right/h_left
+    T_r = T_l + flux_right*L_x/mat_man.k_arr[0]
     T_ans = T_l + grid_man.x_node*(T_r - T_l)/L_x
 
     err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot

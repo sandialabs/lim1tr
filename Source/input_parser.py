@@ -67,6 +67,7 @@ class input_parser:
         grid_man = grid.grid_manager()
         self.load_table(grid_man)
         grid_man.setup_grid()
+        grid_man.set_PA_r(self.cap_dict['Other'])
 
         # Materials
         mat_man = material.material_manager()
@@ -77,7 +78,7 @@ class input_parser:
 
         # Boundaries
         bc_man = boundary.bc_manager(grid_man)
-        self.load_bc(bc_man)
+        bc_man.setup(self.cap_dict['Boundary'])
 
         # Parse optional reaction blocks
         # All the parsing will be handled by reaction manager so that it
@@ -154,24 +155,6 @@ class input_parser:
         else:
             mat_man.cont_res = np.zeros(grid_man.n_layers-1)
         mat_man.add_mesh(grid_man)
-
-
-    def load_bc(self, bc_man):
-        '''Parse boundary properties
-
-        Args:
-            bc_man (object): boundary condition manager
-        '''
-        bnd_dict = self.cap_dict['Boundary']
-
-        # Set up BCs
-        bc_man.setup(bnd_dict)
-
-        # Set perimeter to cross-sectional area ratio
-        oth_dict = self.cap_dict['Other']
-        L_y = oth_dict['Y Dimension']
-        L_z = oth_dict['Z Dimension']
-        bc_man.PA_r = 2.*(L_y + L_z)/(L_y*L_z)
 
 
     def load_time(self, grid_man):

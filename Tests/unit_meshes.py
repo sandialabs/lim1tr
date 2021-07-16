@@ -24,6 +24,7 @@ def mesh_one(dx_a=1.,rho_a=1,cp_a=1.,k_a=1.):
     grid_man.layer_dx = [dx_a]
     grid_man.layer_thickness = [dx_a*10]
     grid_man.setup_grid()
+    grid_man.PA_r = 0.5
     mat_man.add_mesh(grid_man)
     a_mat = material.fv_material('A')
     a_mat.set_rho(rho_a)

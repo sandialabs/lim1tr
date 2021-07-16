@@ -68,11 +68,12 @@ def trans_end_conv(file_name, plotting=False):
     zeta_n = [1.3138, 4.0336, 6.9096, 9.8928] # First four roots of the transcendental eqn with Bi = 5
     half_nodes = int(grid_man.n_tot*0.5)
     x_star = (np.arange(half_nodes) + 0.5)/half_nodes
+    T_right = model.parser.cap_dict['Boundary']['Right']['T']
     theta = np.zeros(half_nodes)
     for i in range(4):
         C_n = 4.*np.sin(zeta_n[i])/(2.*zeta_n[i] + np.sin(2.*zeta_n[i]))
         theta += C_n*np.exp(-zeta_n[i]**2*Fo)*np.cos(zeta_n[i]*x_star)
-    T_ans = bc_man.T_right + theta*(np.mean(time_opts['T Initial']) - bc_man.T_right)
+    T_ans = T_right + theta*(np.mean(time_opts['T Initial']) - T_right)
 
     # Calculate error
     err = np.sqrt(np.sum((T_ans - eqn_sys.T_lin[half_nodes:])**2)/half_nodes)
@@ -134,8 +135,10 @@ def trans_ext_conv(file_name, e_tol):
 
     my_t = time_opts['Run Time']
     my_mat = mat_man.get_material('A')
-    C_o = bc_man.h_ext*bc_man.PA_r/(my_mat.rho*my_mat.cp)
-    T_ans = bc_man.T_ext + (np.mean(time_opts['T Initial']) - bc_man.T_ext)*np.exp(-1.0*C_o*my_t)
+    h_ext = model.parser.cap_dict['Boundary']['External']['h']
+    T_ext = model.parser.cap_dict['Boundary']['External']['T']
+    C_o = h_ext*bc_man.PA_r/(my_mat.rho*my_mat.cp)
+    T_ans = T_ext + (np.mean(time_opts['T Initial']) - T_ext)*np.exp(-1.0*C_o*my_t)
     err = np.max(np.abs(eqn_sys.T_lin - T_ans))
     if err > e_tol:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
@@ -157,7 +160,7 @@ def trans_end_flux_cn(plotting=False):
     my_t = time_opts['Run Time']
     my_mat = mat_man.get_material('A')
     alpha = my_mat.k/(my_mat.rho*my_mat.cp)
-    q_in = bc_man.flux_left
+    q_in = model.parser.cap_dict['Boundary']['Left']['Flux']
 
     # Analytical soln (Incropera 6th edition, p. 286)
     c_one = (2*q_in/my_mat.k)*np.sqrt(alpha*my_t/np.pi)

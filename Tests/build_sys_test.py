@@ -83,13 +83,11 @@ def bc_apply_test():
     T_left = 101.
     h_right = 4.
     T_right = 102.
-    PA_r = 0.5
     bnd_dict = {}
     bnd_dict['External'] = {'Type': 'convection', 'h': h_ext, 'T': T_ext}
     bnd_dict['Left'] = {'Type': 'convection', 'h': h_left, 'T': T_left}
     bnd_dict['Right'] = {'Type': 'Convection', 'h': h_right, 'T': T_right}
     bc_man.setup(bnd_dict)
-    bc_man.PA_r = PA_r
 
     # Apply boundary terms
     bc_man.apply(eqn_sys, mat_man, 0)
@@ -100,7 +98,7 @@ def bc_apply_test():
     c_right = h_right*phi_right/(h_right + phi_right)
 
     # Check error
-    h_const = h_ext*dx_a*PA_r
+    h_const = h_ext*dx_a*grid_man.PA_r
     err_l = np.sum(eqn_sys.LHS_l**2)
     err_u = np.sum(eqn_sys.LHS_u**2)
     err_c = np.sum((eqn_sys.LHS_c[1:grid_man.n_tot-1] - h_const)**2)
