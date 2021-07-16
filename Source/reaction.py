@@ -11,6 +11,7 @@
 from __future__ import division
 import numpy as np
 import reaction_system
+import reaction_system_helper
 import reaction_models
 
 
@@ -20,6 +21,7 @@ class reaction_manager:
         self.species_rate = {}
         self.n_tot = grid_man.n_tot
         self.mat_nodes = grid_man.mat_nodes
+        self.first_node_list = grid_man.first_node_list
         self.cross_area = other_opts['Y Dimension']*other_opts['Z Dimension']
 
         # Set DSC Mode
@@ -89,15 +91,18 @@ class reaction_manager:
         self.material_info['rho'] = self.rho
         self.material_info['cp'] = self.cp
 
-        # Get number of cells
+        # Get number of cells and set up node key
         self.n_cells = 0
-        for layer_name in mat_man.layer_names:
-            if self.mat_name == layer_name:
+        self.cell_node_key = np.zeros(self.n_tot, dtype=int)
+        self.first_node_list = self.first_node_list + [self.n_tot]
+        for k in range(len(mat_man.layer_names)):
+            if self.mat_name == mat_man.layer_names[k]:
                 self.n_cells += 1
+                self.cell_node_key[self.first_node_list[k]:self.first_node_list[k+1]] = self.n_cells
 
         # Set up domain where reactions are present
         self.active_nodes = np.argwhere(self.mat_nodes == self.mat_name).flatten()
-        self.inactive_node_index = []
+        self.inactive_node_list = []
 
 
     def load_reactions(self, rxn_dict):
@@ -135,57 +140,27 @@ class reaction_manager:
                 active_cells[i,:] = np.ones(self.n_cells, dtype=int)
             else:
                 for cell_num in rxn_info['Active Cells']:
+                    if cell_num > self.n_cells:
+                        err_str = 'Cell {} on reaction {} does not exist. '.format(cell_num, rxn_nums[i])
+                        err_str += 'Only {} cells were found in the mesh.'.format(self.n_cells)
+                        raise ValueError(err_str)
+                    elif cell_num < 1:
+                        err_str = 'Cell number on reaction {} must be greater than 1.'.format(rxn_nums[i])
+                        raise ValueError(err_str)
                     active_cells[i,cell_num-1] = 1
 
         # Determine the number of unique reaction systems
-        self.find_unique_systems(active_cells)
+        self.node_to_system_map, unique_system_list = reaction_system_helper.map_all_systems(
+            active_cells, self.cell_node_key)
 
         # Construct reaction systems by pulling out models and columns of frac_mat
         self.reaction_systems = []
-        for i in range(len(self.unique_system_list)):
-            tmp_sys = self.unique_system_list[i]
+        for i in range(len(unique_system_list)):
+            tmp_sys = unique_system_list[i]
             rxn_inds = [j for j in range(tmp_sys.shape[0]) if tmp_sys[j]]
             model_sub_list = [self.model_list[j] for j in range(tmp_sys.shape[0]) if tmp_sys[j]]
             self.reaction_systems.append(reaction_system.reaction_system(
                 frac_mat[:,rxn_inds], model_sub_list, self.rho_cp, self.dsc_info))
-
-
-    def find_unique_systems(self, active_cells):
-        '''Finds and indexes all unique reaction systems
-        '''
-        self.system_index = np.zeros(self.n_cells, dtype=int)
-        self.unique_system_list = [active_cells[:,0]]
-        for i in range(1, self.n_cells):
-            system_exists = self.check_system_exists(active_cells[:,i])
-            if system_exists:
-                self.system_index[i] = self.get_system_index(active_cells[:,i])
-            else:
-                self.system_index[i] = len(self.unique_system_list)
-                self.unique_system_list.append(active_cells[:,i])
-
-
-    def check_system_exists(self, my_system):
-        system_exists = False
-        for a_system in self.unique_system_list:
-            num_diffs = np.sum(np.abs(my_system - a_system))
-            if num_diffs == 0:
-                system_exists = True
-                break
-        return system_exists
-
-
-    def get_system_index(self, my_system):
-        system_index = -1
-        for j in range(len(self.unique_system_list)):
-            a_system = self.unique_system_list[j]
-            num_diffs = np.sum(np.abs(my_system - a_system))
-            if num_diffs == 0:
-                system_index = j
-                break
-        if system_index == -1:
-            err_str = 'Reaction system not found in unique system list.'
-            raise ValueError(err_str)
-        return system_index
 
 
     def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-6, atol=1e-6, rtol=1e-6, nsteps=5000, return_err=False):
@@ -195,13 +170,20 @@ class reaction_manager:
         T_out = np.copy(T_in)
 
         # Clear nodes that were previously deactivated
-        if len(self.inactive_node_index) > 0:
+        if len(self.inactive_node_list) > 0:
             self.clear_nodes()
 
         # Loop over all active nodes
         err_list = []
         for act_ind in range(self.active_nodes.shape[0]):
+            # Get node index
             i = self.active_nodes[act_ind]
+
+            # Get reaction system index
+            sys_ind = self.node_to_system_map[i]
+            if sys_ind < 0:
+                err_str = 'No reaction system specified on node {}.'.format(i)
+                raise ValueError(err_str)
 
             # Create input array
             v_in = np.zeros(self.n_species + 1)
@@ -214,7 +196,7 @@ class reaction_manager:
             v_in[-1] = T_in[i]
 
             # Solve system
-            my_sol, my_status = self.reaction_systems[0].solve_ode_node(
+            my_sol, my_status = self.reaction_systems[sys_ind].solve_ode_node(
                 t_arr, v_in, dt0=dt0, atol=atol, rtol=rtol, nsteps=nsteps)
             if return_err:
                 err_list.append(my_status)
@@ -224,7 +206,7 @@ class reaction_manager:
                 self.species_density[self.species_name_list[j]][i] = np.copy(my_sol[-1,j])
 
             # Get rates
-            rate_arr = self.reaction_systems[0].get_rates(my_sol[-1,:])
+            rate_arr = self.reaction_systems[sys_ind].get_rates(my_sol[-1,:])
 
             # Update rates
             for j in range(len(self.species_name_list)):
@@ -236,9 +218,9 @@ class reaction_manager:
             T_out[i] = np.copy(my_sol[-1,-1])
 
             # Check for reactant exhaustion
-            is_complete = self.reaction_systems[0].check_complete(my_sol[-1,:])
+            is_complete = self.reaction_systems[sys_ind].check_complete(my_sol[-1,:])
             if is_complete:
-                self.inactive_node_index.append(act_ind)
+                self.inactive_node_list.append(act_ind)
 
         return T_out, err_list
 
@@ -247,7 +229,7 @@ class reaction_manager:
         '''Clear out exhausted species and rates for nodes
         who's reaction systems completed last time step.
         '''
-        for act_ind in self.inactive_node_index:
+        for act_ind in self.inactive_node_list:
             i = self.active_nodes[act_ind]
             # Clear exhausted species
             for j in range(len(self.species_name_list)):
@@ -261,5 +243,5 @@ class reaction_manager:
             self.heat_release_rate[i] = 0.0
 
         # Remove nodes from active nodes
-        self.active_nodes = np.delete(self.active_nodes, self.inactive_node_index)
-        self.inactive_node_index = []
+        self.active_nodes = np.delete(self.active_nodes, self.inactive_node_list)
+        self.inactive_node_list = []

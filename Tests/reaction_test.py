@@ -15,6 +15,7 @@ from scipy.special import expi
 sys.path.append('../Source')
 import input_parser
 import reaction
+import reaction_system_helper
 import unit_mocks
 
 import matplotlib as mpl
@@ -267,17 +268,15 @@ def fd_check(file_name, grad_check=False):
 
 def one_unique_system_test():
     print('Testing unique reaction system identification for 1 reaction system...')
-    grid_mock = unit_mocks.grid_mock()
-    reac_man = reaction.reaction_manager(grid_mock, unit_mocks.other_mock)
-    reac_man.n_rxn = 3
-    reac_man.n_cells = 5
-    active_cells = np.ones([reac_man.n_rxn, reac_man.n_cells], dtype=int)
-    reac_man.find_unique_systems(active_cells)
-    true_system_index = np.zeros(reac_man.n_cells, dtype=int)
-    true_unique_system_list = [np.ones(reac_man.n_rxn, dtype=int)]
+    n_rxn = 3
+    n_cells = 5
+    active_cells = np.ones([n_rxn, n_cells], dtype=int)
+    system_index, unique_system_list = reaction_system_helper.find_unique_systems(active_cells)
+    true_system_index = np.zeros(n_cells, dtype=int)
+    true_unique_system_list = [np.ones(n_rxn, dtype=int)]
 
     test_passed = verify_unique_system_test(true_system_index, true_unique_system_list,
-        reac_man.system_index, reac_man.unique_system_list)
+        system_index, unique_system_list)
     if test_passed:
         print('\tPassed\n')
     return test_passed
@@ -285,20 +284,18 @@ def one_unique_system_test():
 
 def two_unique_system_test():
     print('Testing unique reaction system identification for 2 reaction systems...')
-    grid_mock = unit_mocks.grid_mock()
-    reac_man = reaction.reaction_manager(grid_mock, unit_mocks.other_mock)
-    reac_man.n_rxn = 3
-    reac_man.n_cells = 5
-    active_cells = np.ones([reac_man.n_rxn, reac_man.n_cells], dtype=int)
+    n_rxn = 3
+    n_cells = 5
+    active_cells = np.ones([n_rxn, n_cells], dtype=int)
     active_cells[:,0] = [1,1,0]
     active_cells[:,3] = [1,1,0]
-    reac_man.find_unique_systems(active_cells)
+    system_index, unique_system_list = reaction_system_helper.find_unique_systems(active_cells)
     true_system_index = np.array([0,1,1,0,1], dtype=int)
     true_unique_system_list = [np.array([1,1,0], dtype=int),
-        np.ones(reac_man.n_rxn, dtype=int)]
+        np.ones(n_rxn, dtype=int)]
 
     test_passed = verify_unique_system_test(true_system_index, true_unique_system_list,
-        reac_man.system_index, reac_man.unique_system_list)
+        system_index, unique_system_list)
     if test_passed:
         print('\tPassed\n')
     return test_passed
@@ -306,22 +303,20 @@ def two_unique_system_test():
 
 def three_unique_system_test():
     print('Testing unique reaction system identification for 3 reaction systems...')
-    grid_mock = unit_mocks.grid_mock()
-    reac_man = reaction.reaction_manager(grid_mock, unit_mocks.other_mock)
-    reac_man.n_rxn = 3
-    reac_man.n_cells = 5
-    active_cells = np.ones([reac_man.n_rxn, reac_man.n_cells], dtype=int)
+    n_rxn = 3
+    n_cells = 5
+    active_cells = np.ones([n_rxn, n_cells], dtype=int)
     active_cells[:,0] = [1,1,0]
     active_cells[:,3] = [1,1,0]
     active_cells[:,4] = [0,0,1]
-    reac_man.find_unique_systems(active_cells)
+    system_index, unique_system_list = reaction_system_helper.find_unique_systems(active_cells)
     true_system_index = np.array([0,1,1,0,2], dtype=int)
     true_unique_system_list = [np.array([1,1,0], dtype=int),
-        np.ones(reac_man.n_rxn, dtype=int),
+        np.ones(n_rxn, dtype=int),
         np.array([0,0,1], dtype=int)]
 
     test_passed = verify_unique_system_test(true_system_index, true_unique_system_list,
-        reac_man.system_index, reac_man.unique_system_list)
+        system_index, unique_system_list)
     if test_passed:
         print('\tPassed\n')
     return test_passed
@@ -345,6 +340,29 @@ def verify_unique_system_test(true_index, true_list, reac_index, reac_list):
                 print('\tFailed: incorrect unique reaction list.\n')
                 return test_passed
 
+    return test_passed
+
+
+def map_system_index_to_node_test():
+    print('Testing construction of the node to reaction system map...')
+    n_rxn = 3
+    n_cells = 4
+    active_cells = np.ones([n_rxn, n_cells], dtype=int)
+    active_cells[:,0] = [1,1,0]
+    active_cells[:,2] = [1,1,0]
+    active_cells[:,3] = [0,0,1]
+    system_index, unique_system_list = reaction_system_helper.find_unique_systems(active_cells)
+    cell_node_key = [0, 0, 1, 1, 2, 2, 0, 0, 3, 3, 4, 4]
+    true_node_to_system_map = [-1, -1, 0, 0, 1, 1, -1, -1, 0, 0, 2, 2]
+    node_to_system_map = reaction_system_helper.map_system_to_node(system_index, cell_node_key)
+
+    sys_diff = sum(abs(true_node_to_system_map - node_to_system_map))
+    test_passed = 0
+    if sys_diff > 0:
+        print('\tFailed: incorrect node to system map.\n')
+    else:
+        print('\tPassed\n')
+        test_passed = 1
     return test_passed
 
 
@@ -374,3 +392,5 @@ if __name__ == '__main__':
     two_unique_system_test()
 
     three_unique_system_test()
+
+    map_system_index_to_node_test()

@@ -27,6 +27,7 @@ class grid_mock:
         self.n_layers = 1
         self.n_tot = 10
         self.mint_list = [9]
+        self.first_node_list = [0]
         self.mat_nodes = np.asarray(self.layer_names*self.n_tot)
         self.dx_arr = np.zeros(self.n_tot) + self.layer_dx[0]
         self.internal_bounds = [[1, self.mint_list[0]]]

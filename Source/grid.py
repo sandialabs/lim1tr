@@ -30,11 +30,15 @@ class grid_manager:
         self.n_tot = 0
         mat_nodes = []
         self.mint_list = []
+        self.first_node_list = []
         dx_list = []
         for i in range(self.n_layers):
             if self.layer_thickness[i] < self.layer_dx[i]:
                 err_str = 'Requested dx on layer {} is greater than the thickness.'.format(i+1)
                 raise ValueError(err_str)
+
+            # Save first node index
+            self.first_node_list.append(self.n_tot)
 
             # Calculate number of nodes
             n_m = int(np.round(self.layer_thickness[i]/self.layer_dx[i],0))
