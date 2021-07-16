@@ -14,7 +14,7 @@ import os, sys
 import pandas as pd
 import yaml
 import material
-import build_sys
+import boundary
 import grid
 import reaction
 import data
@@ -76,7 +76,7 @@ class input_parser:
         time_opts = self.load_time(grid_man)
 
         # Boundaries
-        bc_man = build_sys.bc_manager(grid_man)
+        bc_man = boundary.bc_manager(grid_man)
         self.load_bc(bc_man)
 
         # Parse optional reaction blocks

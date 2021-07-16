@@ -20,7 +20,7 @@ main_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(main_path + '/Source')
 import solvers
 import input_parser
-import build_sys
+import conduction
 import equation_sys
 import time_integrator
 
@@ -42,7 +42,7 @@ class lim1tr_model:
         mat_man.eval_props()
 
         # Initialize conduction manager
-        cond_man = build_sys.conduction_manager(grid_man)
+        cond_man = conduction.conduction_manager(grid_man)
 
         # Initialize equation system
         eqn_sys = equation_sys.eqn_sys(grid_man, reac_man,
