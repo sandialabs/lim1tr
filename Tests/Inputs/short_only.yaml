@@ -2,7 +2,7 @@ Materials:
     A:
         k: 1.
         rho: 2000.
-        cp: 500.
+        cp: 800.
 
 Species:
     Names: ['C6Li', 'CoO2', 'C6', 'LiCoO2', 'Inert']
@@ -12,10 +12,6 @@ Species:
 
 Reactions:
     1:
-        A: 38.537
-        E: 0.
-        R: 1
-        H: -2384306.
         Reactants:
             'C6Li': 1
             'CoO2': 1
@@ -23,8 +19,9 @@ Reactions:
             'C6': 1
             'LiCoO2': 1
         Type: 'Short'
-        Short Power: 1.0
-        Concentration Scale: 0.327
+        Voltage: 4.2
+        Short Resistance: 0.001
+        Volume: 4.8e-5
 
 Domain Table:
     Material Name: [A]
@@ -40,11 +37,12 @@ Boundary:
         Type: Adiabatic
 
 Time:
-    Run Time: 30.
+    Run Time: 4.
     T Initial: 298.15
     dt: 0.1
+    Print Progress: 0
 
 Other:
-    Y Dimension: 0.01
-    Z Dimension: 0.01
+    Y Dimension: 0.12
+    Z Dimension: 0.04
     Reaction Only: 1

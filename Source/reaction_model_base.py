@@ -22,8 +22,14 @@ class rxn_model:
         self.small_number = 1.0e-15
 
         # Set kinetic parameters
-        self.A = rxn_info['A']
-        self.H_rxn = -1.*rxn_info['H']
+        if 'A' not in rxn_info.keys():
+            self.A = 0.0
+        else:
+            self.A = rxn_info['A']
+        if 'H' not in rxn_info.keys():
+            self.H_rxn = 0.0
+        else:
+            self.H_rxn = -1.*rxn_info['H']
         if 'E' not in rxn_info.keys():
             self.EoR = 0.0
         else:

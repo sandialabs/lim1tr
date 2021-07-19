@@ -58,7 +58,7 @@ class lim1tr_model:
         eqn_sys.solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
 
         # Return managers and options
-        return eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts
+        return eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts
 
 
 if __name__ == '__main__':

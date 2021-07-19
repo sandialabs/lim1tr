@@ -55,7 +55,7 @@ def trans_end_conv_cn_split(plotting=False):
 def trans_end_conv(file_name, plotting=False):
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Fourier number
     L = np.sum(grid_man.dx_arr)*0.5
@@ -131,7 +131,7 @@ def trans_ext_conv_cn_split():
 def trans_ext_conv(file_name, e_tol):
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     my_t = time_opts['Run Time']
     my_mat = mat_man.get_material('A')
@@ -153,7 +153,7 @@ def trans_end_flux_cn(plotting=False):
     # Run model
     file_name = os.getcwd() + '/Inputs/trans_end_flux_cn.yaml'
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Save a few numbers
     L = np.sum(grid_man.dx_arr)*0.5
@@ -206,7 +206,7 @@ def deactivate_bcs_test():
         'Left': flux_bnd,
         'Right': flux_bnd}
     model.parser.cap_dict['Boundary'] = bnd_dict
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     dT_rate = 2*10000/(0.01*2000*500)
     T_true = 300 + dT_rate*5

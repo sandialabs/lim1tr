@@ -45,7 +45,7 @@ def simple_steady_cond(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Pull constants out of parser
     h_left = model.parser.cap_dict['Boundary']['Left']['h']
@@ -82,7 +82,7 @@ def end_conv_steady_cond(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Analytical soln
     T_left = model.parser.cap_dict['Boundary']['Left']['T']
@@ -112,7 +112,7 @@ def end_conv_steady_cond_stack(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Analytical soln
     h_left = model.parser.cap_dict['Boundary']['Left']['h']
@@ -147,7 +147,7 @@ def exterior_steady_cond(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     h_left = model.parser.cap_dict['Boundary']['Left']['h']
     T_left = model.parser.cap_dict['Boundary']['Left']['T']
@@ -184,7 +184,7 @@ def contact_resistance(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     h_left = model.parser.cap_dict['Boundary']['Left']['h']
     h_right = model.parser.cap_dict['Boundary']['Right']['h']
@@ -227,7 +227,7 @@ def left_flux_right_conv(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     flux_left = model.parser.cap_dict['Boundary']['Left']['Flux']
     h_right = model.parser.cap_dict['Boundary']['Right']['h']
@@ -258,7 +258,7 @@ def left_conv_right_flux(plotting=False):
 
     # Run model
     model = main_fv.lim1tr_model(file_name)
-    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, time_opts = model.run_model()
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     h_left = model.parser.cap_dict['Boundary']['Left']['h']
     T_left = model.parser.cap_dict['Boundary']['Left']['T']

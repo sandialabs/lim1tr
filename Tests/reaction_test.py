@@ -12,6 +12,8 @@ from __future__ import division
 import numpy as np
 import time, sys, os
 from scipy.special import expi
+sys.path.append('../')
+import main_fv
 sys.path.append('../Source')
 import input_parser
 import reaction
@@ -78,33 +80,40 @@ def single_rxn_temperature_ramp(plotting=False):
         return 1
 
 
-def short_rxn():
+def short_rxn_C6Li():
     '''Check the short reaction evaluation at a given state for C6Li limiting
     '''
     print('Testing short circuit reaction with C6Li limiting...')
-    # Parse file
-    a_parser = input_parser.input_parser('./Inputs/short_only.yaml')
-    mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
-
-    # Build variable vector
-    my_v = np.zeros(reac_man.n_species+1)
-    for i in range(len(reac_man.species_name_list)):
-        my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
-    my_v[-1] = time_opts['T Initial']
-
-    # Compute function at base inputs
-    reac_sys = reac_man.reaction_systems[0]
-    my_f = reac_sys.evaluate_ode(0, my_v)
+    # Run Model
+    model = main_fv.lim1tr_model('./Inputs/short_only.yaml')
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Compute solution
-    my_rxn = reac_sys.model_list[0]
-    conc_C6Li = 0.13*2000./79.007
-    x_C6Li = conc_C6Li*my_rxn.conc_scale
-    conc_fun_1 = (np.tanh(my_rxn.t_scale*x_C6Li) + my_rxn.short_slope*x_C6Li)/(1. + my_rxn.short_slope)
-    r_1 = -1.*reac_sys.A[0]*conc_fun_1
-    err = np.abs(r_1*79.007/(79.007 + 90.931) - my_f[0])
+    voltage = 4.2
+    short_resistance = 0.001
+    volume = 4.8e-5
+    charge_kmol = 1000*6.022e23*1.6023e-19
+    kg_reactants = 79.007 + 90.931
+    Y_o = model.parser.cap_dict['Species']['Initial Mass Fraction']
+    rho_C6Li_o = 2000*Y_o[0]
+    rho_CoO2_o = 2000*Y_o[1]
+    t_arr = np.linspace(0, 4, 41)
+    dT_dt = voltage**2/(short_resistance*volume*2000*800)
+    rate = voltage*kg_reactants/(short_resistance*charge_kmol*volume)
+    rho_C6Li = rho_C6Li_o - rate*t_arr*(79.007/(79.007 + 90.931))
+    # rho_CoO2 = rho_CoO2_o - rate*t_arr*(90.931/(79.007 + 90.931))
+    T_ans = 298.15 + dT_dt*t_arr
+    t_complete = rho_C6Li_o/(rate*79.007/(79.007 + 90.931))
+    T_f = 298.15 + dT_dt*t_complete
+    for i in range(t_arr.shape[0]):
+        if rho_C6Li[i] < 0:
+            rho_C6Li[i] = 0
+            T_ans[i] = T_f
 
-    if err > 1e-12:
+    err = np.sqrt(np.mean((rho_C6Li - data_man.data_dict['C6Li'][:,0])**2))
+    err += np.sqrt(np.mean((T_ans - data_man.data_dict['Temperature'][:,0])**2))
+
+    if err > 2e-7:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
         return 0
     else:
@@ -112,33 +121,40 @@ def short_rxn():
         return 1
 
 
-def short_rxn_v2():
+def short_rxn_CoO2():
     '''Check the short reaction evaluation at a given state for CoO2 limiting
     '''
     print('Testing short circuit reaction with CoO2 limiting...')
-    # Parse file
-    a_parser = input_parser.input_parser('./Inputs/short_only_v2.yaml')
-    mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
-
-    # Build variable vector
-    my_v = np.zeros(reac_man.n_species+1)
-    for i in range(len(reac_man.species_name_list)):
-        my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
-    my_v[-1] = time_opts['T Initial']
-
-    # Compute function at base inputs
-    reac_sys = reac_man.reaction_systems[0]
-    my_f = reac_sys.evaluate_ode(0, my_v)
+    # Run Model
+    model = main_fv.lim1tr_model('./Inputs/short_only.yaml')
+    model.parser.cap_dict['Species']['Initial Mass Fraction'][0] = 0.16
+    model.parser.cap_dict['Species']['Initial Mass Fraction'][1] = 0.13
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Compute solution
-    my_rxn = reac_sys.model_list[0]
-    conc_CoO2 = 0.13*2000./90.931
-    x_CoO2 = conc_CoO2*my_rxn.conc_scale
-    conc_fun_1 = (np.tanh(my_rxn.t_scale*x_CoO2) + my_rxn.short_slope*x_CoO2)/(1. + my_rxn.short_slope)
-    r_1 = -1.*reac_sys.A[0]*conc_fun_1
-    err = np.abs(r_1*79.007/(79.007 + 90.931) - my_f[0])
+    voltage = 4.2
+    short_resistance = 0.001
+    volume = 4.8e-5
+    charge_kmol = 1000*6.022e23*1.6023e-19
+    kg_reactants = 79.007 + 90.931
+    Y_o = model.parser.cap_dict['Species']['Initial Mass Fraction']
+    rho_CoO2_o = 2000*Y_o[1]
+    t_arr = np.linspace(0, 4, 41)
+    dT_dt = voltage**2/(short_resistance*volume*2000*800)
+    rate = voltage*kg_reactants/(short_resistance*charge_kmol*volume)
+    rho_CoO2 = rho_CoO2_o - rate*t_arr*(90.931/(79.007 + 90.931))
+    T_ans = 298.15 + dT_dt*t_arr
+    t_complete = rho_CoO2_o/(rate*90.931/(79.007 + 90.931))
+    T_f = 298.15 + dT_dt*t_complete
+    for i in range(t_arr.shape[0]):
+        if rho_CoO2[i] < 0:
+            rho_CoO2[i] = 0
+            T_ans[i] = T_f
 
-    if err > 1e-12:
+    err = np.sqrt(np.mean((rho_CoO2 - data_man.data_dict['CoO2'][:,0])**2))
+    err += np.sqrt(np.mean((T_ans - data_man.data_dict['Temperature'][:,0])**2))
+
+    if err > 1e-7:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
         return 0
     else:
@@ -375,13 +391,9 @@ if __name__ == '__main__':
 
     fd_check('jac_test_single', grad_check=True)
 
-    fd_check('short_only', grad_check=True)
+    short_rxn_C6Li()
 
-    fd_check('short_only_v2', grad_check=True)
-
-    short_rxn()
-
-    short_rxn_v2()
+    short_rxn_CoO2()
 
     fd_check('anode_only', grad_check=True)
 

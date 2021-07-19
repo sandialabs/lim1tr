@@ -55,8 +55,8 @@ test_status.append(trans_cond.deactivate_bcs_test())
 test_status.append(reaction_test.single_rxn_temperature_ramp())
 test_status.append(reaction_test.fd_check('jac_test'))
 test_status.append(reaction_test.fd_check('jac_test_single'))
-test_status.append(reaction_test.short_rxn())
-test_status.append(reaction_test.short_rxn_v2())
+test_status.append(reaction_test.short_rxn_C6Li())
+test_status.append(reaction_test.short_rxn_CoO2())
 test_status.append(reaction_test.zcrit_rxn())
 
 # Reaction manager tests

@@ -15,7 +15,7 @@ import reaction_model_base
 
 rxn_model_dictionary_included = {
     'Basic': 'basic_rxn',
-    'Short': 'tanh_short',
+    'Short': 'simple_short',
     'Zcrit': 'zcrit'
 }
 
@@ -46,50 +46,31 @@ class basic_rxn(reaction_model_base.rxn_model):
         return my_dr_part_col
 
 
-class tanh_short(reaction_model_base.rxn_model):
+class simple_short(reaction_model_base.rxn_model):
     def setup(self):
-        '''Setup: there are several constants we can make to cut down on operations
-        in the concentration function evaluation
-        '''
-        self.conc_scale = self.rxn_info['Concentration Scale']
-        self.short_pow = self.rxn_info['Short Power']
-        self.t_scale = 50.
-        self.t_scale_sc = self.t_scale*self.conc_scale
-        self.short_slope = 0.15
-        self.inverse_slope_plus_one = 1./(1. + self.short_slope)
-        self.short_slope_sc = self.short_slope*self.conc_scale
+        voltage = self.rxn_info['Voltage']
+        short_resistance = self.rxn_info['Short Resistance']
+        volume = self.rxn_info['Volume']
+
+        charge_kmol = 1000*6.022e23*1.6023e-19
+        total_reactants = 0.0
+        self.reactants = self.rxn_info['Reactants'].keys()
+        for key in self.rxn_info['Reactants']:
+            total_reactants += self.rxn_info['Reactants'][key]
+        self.A = voltage*total_reactants/(short_resistance*charge_kmol*volume)
+        self.H_rxn = voltage*charge_kmol/total_reactants
 
 
     def concentration_function(self, my_v):
-        '''Short circuit model
-        '''
-        # Convert to molar concentrations of C6Li and CoO2
-        conc_C6Li = max(my_v[self.name_map['C6Li']]/79.007, 1e-10)
-        conc_CoO2 = max(my_v[self.name_map['CoO2']]/90.931, 1e-10)
-        if conc_C6Li > conc_CoO2:
-            # print('CoO2 limiting')
-            return (np.tanh(self.t_scale_sc*conc_CoO2) + self.short_slope_sc*conc_CoO2)*self.inverse_slope_plus_one
-        else:
-            # print('C6Li limiting')
-            return (np.tanh(self.t_scale_sc*conc_C6Li) + self.short_slope_sc*conc_C6Li)*self.inverse_slope_plus_one
+        conc_func = 1.0
+        for reactant in self.reactants:
+            if my_v[self.name_map[reactant]] < self.small_number:
+                conc_func = 0.0
+        return conc_func
 
 
     def concentration_derivative(self, my_v):
-        '''Derivative of short circuit model
-        w.r.t. each species
-        '''
-        my_dr_part_col = np.zeros(self.n_species)
-
-        # Convert to molar concentrations of C6Li and CoO2
-        conc_C6Li = max(my_v[self.name_map['C6Li']]/79.007, 1e-10)
-        conc_CoO2 = max(my_v[self.name_map['CoO2']]/90.931, 1e-10)
-        if conc_C6Li > conc_CoO2:
-            aa = self.t_scale_sc*(1. - np.tanh(self.t_scale_sc*conc_CoO2)**2) + self.short_slope_sc
-            my_dr_part_col[self.name_map['CoO2']] = aa*self.inverse_slope_plus_one/90.931
-        else:
-            aa = self.t_scale_sc*(1. - np.tanh(self.t_scale_sc*conc_C6Li)**2) + self.short_slope_sc
-            my_dr_part_col[self.name_map['C6Li']] = aa*self.inverse_slope_plus_one/79.007
-        return my_dr_part_col
+        return np.zeros(self.n_species)
 
 
 class zcrit(reaction_model_base.rxn_model):
