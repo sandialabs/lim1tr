@@ -13,6 +13,7 @@ import numpy as np
 import reaction_system
 import reaction_system_helper
 import reaction_models
+from reaction_model_factory import rxn_model_factory
 
 
 class reaction_manager:
@@ -122,17 +123,8 @@ class reaction_manager:
                 rxn_info['Type'] = 'Basic'
 
             # Make reaction model
-            class_ = getattr(reaction_models, reaction_models.rxn_model_dictionary[rxn_info['Type']])
-            my_rxn_model = class_(rxn_info, self.material_info)
-
-            # Build reactant map
-            key_list, val_arr = my_rxn_model.build_reactant_map()
-            frac_mat[key_list,i] -= val_arr
-
-            # Build product map
-            key_list, val_arr = my_rxn_model.build_product_map()
-            frac_mat[key_list,i] += val_arr
-
+            my_rxn_model, frac_mat_col = rxn_model_factory(rxn_info, self.material_info)
+            frac_mat[:,i] = frac_mat_col
             self.model_list.append(my_rxn_model)
 
             # Get active cells

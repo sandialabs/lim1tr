@@ -53,17 +53,25 @@ test_status.append(trans_cond.deactivate_bcs_test())
 
 # Single reaction tests
 test_status.append(reaction_test.single_rxn_temperature_ramp())
-test_status.append(reaction_test.fd_check('jac_test'))
+test_status.append(reaction_test.fd_check('jac_test', e_thresh=1e-4, du=1e-2))
 test_status.append(reaction_test.fd_check('jac_test_single'))
 test_status.append(reaction_test.short_rxn_C6Li())
 test_status.append(reaction_test.short_rxn_CoO2())
 test_status.append(reaction_test.zcrit_rxn())
+test_status.append(reaction_test.fd_check('anode_only', e_thresh=2e-7, du=1e-6))
+test_status.append(reaction_test.damkohler_anode_test())
+test_status.append(reaction_test.fd_check('damkohler_anode', e_thresh=4e-6, du=1e-6))
 
 # Reaction manager tests
 test_status.append(reaction_test.one_unique_system_test())
 test_status.append(reaction_test.two_unique_system_test())
 test_status.append(reaction_test.three_unique_system_test())
 test_status.append(reaction_test.map_system_index_to_node_test())
+
+# Sub reaction tests
+test_status.append(reaction_test.concentration_product_rule_test())
+test_status.append(reaction_test.rate_constant_product_rule_test_ec())
+test_status.append(reaction_test.rate_constant_product_rule_test_exp())
 
 print('Complete')
 print('Passed {} of {} tests in {:0.3f} seconds.'.format(sum(test_status), len(test_status), time.time() - start_time))

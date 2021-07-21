@@ -82,25 +82,23 @@ class zcrit(reaction_model_base.rxn_model):
         Y_Graphite = self.rxn_info['Y_Graphite']
 
         # Internal parameters (can make these user accessible)
-        m_EC_50 = 1./200.
         nEDexp = 1.22
         CED = 0.31
 
         # Calculated parameters needed for model
-        self.aEdges = CED*BET_C6**nEDexp
+        self.a_e_crit = CED*BET_C6**nEDexp
+        self.rxn_info['a_edges'] = self.a_e_crit*1000  # specific edge area in m2/kg
         self.z_c = (2*6*12.011)/(self.molecular_weights['Li2CO3']*self.rho*Y_Graphite*BET_C6**0.5)
-        self.rho_50 = BET_C6*self.rho*Y_Graphite*m_EC_50
 
 
     def concentration_function(self, my_v):
         '''Critical thickness anode model
         '''
-        rho_fun = my_v[self.name_map['C6Li']]*my_v[self.name_map['EC']]/(self.rho_50 + my_v[self.name_map['EC']])
         if self.z_c*my_v[self.name_map['Li2CO3']] >= self.tau_crit:
             crit_fun = np.exp(-self.C_t*self.tau_crit)
         else:
             crit_fun = np.exp(-self.C_t*self.z_c*my_v[self.name_map['Li2CO3']])
-        return self.aEdges*rho_fun*crit_fun
+        return self.a_e_crit*my_v[self.name_map['C6Li']]*crit_fun
 
 
     def concentration_derivative(self, my_v):
@@ -109,22 +107,15 @@ class zcrit(reaction_model_base.rxn_model):
         '''
         my_dr_part_col = np.zeros(self.n_species)
 
-        # EC calculations
-        ec_frac = my_v[self.name_map['EC']]/(self.rho_50 + my_v[self.name_map['EC']])
-        rho_fun = my_v[self.name_map['C6Li']]*ec_frac
-        rho_fun_dec = my_v[self.name_map['C6Li']]*self.rho_50/(self.rho_50 + my_v[self.name_map['EC']])**2
-
         # Zcrit limiter and derivative of Li2CO3
         if self.z_c*my_v[self.name_map['Li2CO3']] >= self.tau_crit:
             crit_fun = np.exp(-self.C_t*self.tau_crit)
         else:
             crit_fun = np.exp(-self.C_t*self.z_c*my_v[self.name_map['Li2CO3']])
-            my_dr_part_col[self.name_map['Li2CO3']] = self.aEdges*rho_fun*crit_fun*(-self.C_t*self.z_c)
-
-        # EC derivative
-        my_dr_part_col[self.name_map['EC']] = self.aEdges*rho_fun_dec*crit_fun
+            my_dr_part_col[self.name_map['Li2CO3']] = self.a_e_crit*(
+                my_v[self.name_map['C6Li']]*crit_fun*(-self.C_t*self.z_c))
 
         # C6Li derivative
-        my_dr_part_col[self.name_map['C6Li']] = self.aEdges*ec_frac*crit_fun
+        my_dr_part_col[self.name_map['C6Li']] = self.a_e_crit*crit_fun
 
         return my_dr_part_col

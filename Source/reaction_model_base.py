@@ -25,15 +25,15 @@ class rxn_model:
         if 'A' not in rxn_info.keys():
             self.A = 0.0
         else:
-            self.A = rxn_info['A']
+            self.A = float(rxn_info['A'])
         if 'H' not in rxn_info.keys():
             self.H_rxn = 0.0
         else:
-            self.H_rxn = -1.*rxn_info['H']
+            self.H_rxn = -1.*float(rxn_info['H'])
         if 'E' not in rxn_info.keys():
             self.EoR = 0.0
         else:
-            self.EoR = rxn_info['E']/rxn_info['R']
+            self.EoR = float(rxn_info['E'])/float(rxn_info['R'])
 
         self.rxn_info['Reactants'] = self.convert_to_mass(self.rxn_info['Reactants'])
         self.rxn_info['Products'] = self.convert_to_mass(self.rxn_info['Products'])
@@ -84,3 +84,15 @@ class rxn_model:
         val_arr = val_arr/np.sum(val_arr)
 
         return key_list, val_arr
+
+
+    def evaluate_rate_constant(self, my_v):
+        return self.A*np.exp(-self.EoR/my_v[-1])
+
+
+    def evaluate_rate_constant_derivative(self, my_v, my_k):
+        return my_k*self.evaluate_rate_constant_derivative_part(my_v)
+
+
+    def evaluate_rate_constant_derivative_part(self, my_v):
+        return self.EoR/my_v[-1]**2

@@ -36,3 +36,29 @@ class grid_mock:
         for i in range(self.n_tot):
             self.x_node[i] = 0.5*self.dx_arr[i] + np.sum(self.dx_arr[:i])
         self.PA_r = 0.5
+
+
+basic_rxn_info_mock = {
+    'A': 1.0e+9,
+    'E': 100000,
+    'R': 8.314,
+    'H': -1.0e+6,
+    'Reactants':
+        {'R1': 1,
+        'R2': 1},
+    'Products':
+        {'P': 1},
+    'Orders':
+        {'R1': 1}
+}
+
+material_info_mock = {
+    'Names': ['R1', 'R2', 'P', 'Inert'],
+    'Molecular Weights': {
+        'R1': 1.0,
+        'R2': 1.0,
+        'P': 1.0,
+        'Inert': 0.0},
+    'rho': 2000.0,
+    'cp': 800.0
+}

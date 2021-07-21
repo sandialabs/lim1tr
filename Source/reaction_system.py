@@ -29,13 +29,9 @@ class reaction_system:
         else:
             self.temperature_ode = self.rxn_temperature
 
-        # Build kinetic parameter arrays from models
-        self.A = np.zeros(self.n_rxn)
-        self.EoR = np.zeros(self.n_rxn)
+        # Build heat of reaction array from models
         self.H_rxn = np.zeros(self.n_rxn)
         for i in range(self.n_rxn):
-            self.A[i] = model_list[i].A
-            self.EoR[i] = model_list[i].EoR
             self.H_rxn[i] = model_list[i].H_rxn
 
         # Augment frac mat with a row for temperature (for computing the jacobian)
@@ -90,9 +86,8 @@ class reaction_system:
         my_conc = self.evaluate_concentration_functions(my_v)
 
         # Derivative of reactions w.r.t states
-        dr_dv = self.evaluate_concentration_derivatives(my_v)
-        dr_dv[self.n_species,:] = my_conc*self.evaluate_rate_constant_derivative(my_v)
-        dr_dv = dr_dv*my_k
+        dr_dv = my_k*self.evaluate_concentration_derivatives(my_v)
+        dr_dv[self.n_species,:] = my_conc*self.evaluate_rate_constant_derivative(my_v, my_k)
 
         # Compute Jacobian
         d_jac = np.dot(self.aug_mat, dr_dv.T)
@@ -101,11 +96,17 @@ class reaction_system:
 
 
     def evaluate_rate_constant(self, my_v):
-        return self.A*np.exp(-self.EoR/my_v[-1])
+        my_k = np.zeros(self.n_rxn)
+        for ii in range(self.n_rxn):
+            my_k[ii] = self.model_list[ii].evaluate_rate_constant(my_v)
+        return my_k
 
 
-    def evaluate_rate_constant_derivative(self, my_v):
-        return self.EoR/my_v[-1]**2
+    def evaluate_rate_constant_derivative(self, my_v, my_k):
+        my_k_dT = np.zeros(self.n_rxn)
+        for ii in range(self.n_rxn):
+            my_k_dT[ii] = self.model_list[ii].evaluate_rate_constant_derivative(my_v, my_k[ii])
+        return my_k_dT
 
 
     def evaluate_concentration_functions(self, my_v):

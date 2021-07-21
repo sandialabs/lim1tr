@@ -39,7 +39,10 @@ Reactions:
         BET_C6: 1.1             # BET surface area
         tau_crit: 0.08          # Critical anode conversion
         C_t: 72.5               # Model parameter for SEI growth
-        Y_Graphite: 0.532509493 # Initial mass fraction of graphite    
+        Y_Graphite: 0.532509493 # Initial mass fraction of graphite
+        Electrolyte Limiter:
+            Species: 'EC'
+            Limiting Constant: 1.333249314
 
 Domain Table:
     Material Name: [A]

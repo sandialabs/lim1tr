@@ -16,7 +16,7 @@ Output is saved in a pickle file as a list of the following objects:
     - Species mass concentration indexed by user defined species names, if present (2D array)
 - Dictionary of the rate of change of state variables with respect to time at each control volume and simulation time
     - "Time": simulation time (1D array)
-    - "Temperature Rate": temperature rate (2D array)
+    - "Reaction Temperature Rate": temperature rate due to chemical reactions (2D array)
     - "HRR": volumetric heat release rate from chemical reactions (2D array)
     - Species mass concentration rate indexed by user defined species names, if present (2D array)
 

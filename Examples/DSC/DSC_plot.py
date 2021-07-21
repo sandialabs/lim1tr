@@ -16,7 +16,7 @@ mpl.rcParams['lines.linewidth'] = 3
 
 
 # Load input dictionary and output data
-with open('2_rxn_output.p', 'r') as f:
+with open('2_rxn_output.p', 'rb') as f:
     my_input, my_data, my_rate = p.load(f)
 
 # Plot temperature vs time

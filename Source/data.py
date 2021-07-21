@@ -42,7 +42,7 @@ class data_manager:
                 self.data_dict[spec_name] = np.array(reac_man.species_density[spec_name], ndmin=2)
                 self.rate_dict[spec_name] = np.array(reac_man.species_rate[spec_name], ndmin=2)
             self.rate_dict['HRR'] = np.array(reac_man.heat_release_rate, ndmin=2)
-            self.rate_dict['Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
+            self.rate_dict['Reaction Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
         self.data_len = 1
         num_outputs = self.n_tot + self.data_dict['Interface Temperature'].shape[1]
         if reac_man:
@@ -67,9 +67,6 @@ class data_manager:
 
         # Check to see if we need to write a chunk
         if self.data_len >= self.max_len:
-            self.data_dict['Time'] = np.asarray(self.data_dict['Time'])
-            if reac_man:
-                self.rate_dict['Time'] = np.asarray(self.rate_dict['Time'])
             self.write_data()
             self.out_num += 1
 
@@ -83,7 +80,7 @@ class data_manager:
                     self.data_dict[spec_name] = np.array(reac_man.species_density[spec_name], ndmin=2)
                     self.rate_dict[spec_name] = np.array(reac_man.species_rate[spec_name], ndmin=2)
                 self.rate_dict['HRR'] = np.array(reac_man.heat_release_rate, ndmin=2)
-                self.rate_dict['Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
+                self.rate_dict['Reaction Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
             self.data_len = 1
         else:
             # Append most recent step
@@ -97,12 +94,15 @@ class data_manager:
                     self.data_dict[spec_name] = np.concatenate((self.data_dict[spec_name], np.array(reac_man.species_density[spec_name], ndmin=2)), axis=0)
                     self.rate_dict[spec_name] = np.concatenate((self.rate_dict[spec_name], np.array(reac_man.species_rate[spec_name], ndmin=2)), axis=0)
                 self.rate_dict['HRR'] = np.concatenate((self.rate_dict['HRR'], np.array(reac_man.heat_release_rate, ndmin=2)), axis=0)
-                self.rate_dict['Temperature Rate'] = np.concatenate((self.rate_dict['Temperature Rate'], np.array(reac_man.temperature_rate, ndmin=2)), axis=0)
+                self.rate_dict['Reaction Temperature Rate'] = np.concatenate((self.rate_dict['Reaction Temperature Rate'], np.array(reac_man.temperature_rate, ndmin=2)), axis=0)
             self.data_len += 1
 
 
     def write_data(self):
         # Write data to a pickle
+        self.data_dict['Time'] = np.asarray(self.data_dict['Time'])
+        if self.reac_present:
+            self.rate_dict['Time'] = np.asarray(self.rate_dict['Time'])
         tmp_name = self.file_name + '_output_' + str(self.out_num).rjust(4, '0') + '.p'
         output_file = os.path.join(self.fold_name, tmp_name)
         with open(output_file, 'wb') as f:
@@ -131,7 +131,7 @@ class data_manager:
                     my_data[spec_name] = np.concatenate((my_data[spec_name], tmp_data[spec_name]), axis=0)
                     my_rate[spec_name] = np.concatenate((my_rate[spec_name], tmp_rate[spec_name]), axis=0)
                 my_rate['HRR'] = np.concatenate((my_rate['HRR'], tmp_rate['HRR']), axis=0)
-                my_rate['Temperature Rate'] = np.concatenate((my_rate['Temperature Rate'], tmp_rate['Temperature Rate']), axis=0)
+                my_rate['Reaction Temperature Rate'] = np.concatenate((my_rate['Reaction Temperature Rate'], tmp_rate['Reaction Temperature Rate']), axis=0)
 
         # Write data to a pickle
         tmp_name = self.file_name + '_output.p'

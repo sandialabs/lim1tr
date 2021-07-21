@@ -13,8 +13,8 @@ Species:
 Reactions:
     1:
         A: 3.2718e+13
-        E: 16236.69493
-        R: 1
+        E: 135000.0
+        R: 8.3145
         H: -2287100.
         Reactants:
             'C6Li': 2
@@ -31,6 +31,12 @@ Reactions:
         Electrolyte Limiter:
             Species: 'EC'
             Limiting Constant: 1.333249314
+        Damkohler:
+            D: 3.9e-14      # m2/s
+            E: 35000.0      # J/mol
+            A: 2.1e+13      # 1/s
+            r_i: 1.0e-6     # m
+            r_o: 2.0e-6     # m
 
 Domain Table:
     Material Name: [A]

@@ -10,7 +10,7 @@
 
 from __future__ import division
 import numpy as np
-import time, sys, os
+import time, sys, os, copy
 from scipy.special import expi
 sys.path.append('../')
 import main_fv
@@ -18,6 +18,9 @@ sys.path.append('../Source')
 import input_parser
 import reaction
 import reaction_system_helper
+import reaction_models_included
+import reaction_model_factory
+import reaction_submodels
 import unit_mocks
 
 import matplotlib as mpl
@@ -101,7 +104,6 @@ def short_rxn_C6Li():
     dT_dt = voltage**2/(short_resistance*volume*2000*800)
     rate = voltage*kg_reactants/(short_resistance*charge_kmol*volume)
     rho_C6Li = rho_C6Li_o - rate*t_arr*(79.007/(79.007 + 90.931))
-    # rho_CoO2 = rho_CoO2_o - rate*t_arr*(90.931/(79.007 + 90.931))
     T_ans = 298.15 + dT_dt*t_arr
     t_complete = rho_C6Li_o/(rate*79.007/(79.007 + 90.931))
     T_f = 298.15 + dT_dt*t_complete
@@ -181,12 +183,13 @@ def zcrit_rxn():
     my_f = reac_sys.evaluate_ode(0, my_v)
 
     # Compute solution
-    my_rxn = reac_sys.model_list[0]
-    rho_fun = my_v[my_rxn.name_map['C6Li']]*my_v[my_rxn.name_map['EC']]/(my_rxn.rho_50 + my_v[my_rxn.name_map['EC']])
+    my_rxn = reac_sys.model_list[0].my_funcs[0]
+    rho_50 = my_rxn.rxn_info['BET_C6']*my_rxn.rho*my_rxn.rxn_info['Y_Graphite']/200.0
+    rho_fun = my_v[my_rxn.name_map['C6Li']]*my_v[my_rxn.name_map['EC']]/(rho_50 + my_v[my_rxn.name_map['EC']])
     crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_v[my_rxn.name_map['Li2CO3']])
-    conc_fun_1 = my_rxn.aEdges*rho_fun*crit_fun
-    r_1 = -1.*reac_sys.A[0]*conc_fun_1*np.exp(-reac_sys.EoR[0]/time_opts['T Initial'])
-    err = np.abs(r_1*2*79.007/(2*79.007 + 88.062) - my_f[0])
+    conc_fun_1 = my_rxn.a_e_crit*rho_fun*crit_fun
+    r_1 = -1.*my_rxn.A*conc_fun_1*np.exp(-my_rxn.EoR/time_opts['T Initial'])
+    err = np.abs(r_1[0]*2*79.007/(2*79.007 + 88.062) - my_f[0])
 
     if err > 1e-12:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
@@ -196,14 +199,10 @@ def zcrit_rxn():
         return 1
 
 
-def fd_check(file_name, grad_check=False):
+def fd_check(file_name, grad_check=False, e_thresh=1e-7, du=1e-5):
     '''Check the Jacobian computation with finite differences
     '''
     print('Checking Jacobian computation with finite differences for "{}"...'.format(file_name))
-    if 'single' in file_name:
-        e_thresh = 1e-7
-    else:
-        e_thresh = 6e-3
     np.set_printoptions(linewidth = 200)
 
     # Parse file
@@ -257,7 +256,6 @@ def fd_check(file_name, grad_check=False):
         return 1
 
     else:
-        du = 10**(-5)
         jac_fin = np.zeros(jac_comp.shape)
         for i in range(my_v.shape[0]):
             tmp_v = np.copy(my_v)
@@ -382,10 +380,167 @@ def map_system_index_to_node_test():
     return test_passed
 
 
+def concentration_product_rule_test():
+    print('Testing reaction product rule application class on concentration...')
+    # Create the base reaction
+    rxn_info = unit_mocks.basic_rxn_info_mock
+    material_info = unit_mocks.material_info_mock
+    main_rxn = reaction_models_included.basic_rxn(rxn_info, material_info)
+
+    # Create the sub reaction
+    rxn_info['Electrolyte Limiter'] = {
+        'Species': 'R2',
+        'Limiting Constant': 2.0}
+    sub_rxn = reaction_submodels.electrolyte_limiter(main_rxn)
+
+    # Check concentration outputs
+    my_v = np.array([500, 100, 0, 1400, 300])
+    f_c_m = my_v[0]
+    df_c_m = np.array([1, 0, 0, 0])
+    err = np.abs(main_rxn.concentration_function(my_v) - f_c_m)
+    err += np.sum(np.abs(main_rxn.concentration_derivative(my_v) - df_c_m))
+
+    f_c_s = my_v[1]/(2.0 + my_v[1])
+    df_c_s = np.zeros(4)
+    df_c_s[1] = 2.0/(2.0 + my_v[1])**2
+    err += np.abs(sub_rxn.concentration_function(my_v) - f_c_s)
+    err += np.sum(np.abs(sub_rxn.concentration_derivative(my_v) - df_c_s))
+
+    f_c = f_c_m*f_c_s
+    df_c = np.zeros(4)
+    df_c[0] = f_c_s*df_c_m[0]
+    df_c[1] = f_c_m*df_c_s[1]
+    my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
+    err += (my_rxn.concentration_function(my_v) - f_c)
+    err += np.sum(np.abs(my_rxn.concentration_derivative(my_v) - df_c))
+
+    test_passed = 0
+    if err > 1e-15:
+        print('\tFailed: incorrect concentration computation.\n')
+    else:
+        print('\tPassed\n')
+        test_passed = 1
+    return test_passed
+
+
+def rate_constant_product_rule_test_ec():
+    print('Testing reaction product rule application class on a simple rate function...')
+    # Create the base reaction
+    rxn_info = unit_mocks.basic_rxn_info_mock
+    material_info = unit_mocks.material_info_mock
+    main_rxn = reaction_models_included.basic_rxn(rxn_info, material_info)
+
+    # Create the sub reaction
+    rxn_info['Electrolyte Limiter'] = {
+        'Species': 'R2',
+        'Limiting Constant': 2.0}
+    sub_rxn = reaction_submodels.electrolyte_limiter(main_rxn)
+
+    my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
+
+    my_v = np.array([500, 100, 0, 1400, 1000])
+    my_k_true = 1.0e+9*np.exp(-100000/(8.314*my_v[-1]))
+    my_k_dT = my_k_true*(100000/(8.314*my_v[-1]**2))
+    err = np.abs(main_rxn.evaluate_rate_constant(my_v) - my_k_true)
+    err += np.abs(main_rxn.evaluate_rate_constant_derivative(my_v, my_k_true) - my_k_dT)
+
+    err += np.abs(sub_rxn.evaluate_rate_constant(my_v) - 1)
+    err += np.abs(sub_rxn.evaluate_rate_constant_derivative(my_v, 1) - 0)
+
+    err += np.abs(my_rxn.evaluate_rate_constant(my_v) - my_k_true)
+    err += np.abs(my_rxn.evaluate_rate_constant_derivative(my_v, my_k_true) - my_k_dT)
+
+    test_passed = 0
+    if err > 1e-15:
+        print('\tFailed: incorrect rate constant computation.\n')
+    else:
+        print('\tPassed\n')
+        test_passed = 1
+    return test_passed
+
+
+def rate_constant_product_rule_test_exp():
+    print('Testing reaction product rule application class on an exponential rate function...')
+    # Create the base reaction
+    rxn_info = unit_mocks.basic_rxn_info_mock
+    material_info = unit_mocks.material_info_mock
+    main_rxn = reaction_models_included.basic_rxn(rxn_info, material_info)
+
+    rxn_info_sub = copy.deepcopy(rxn_info)
+    rxn_info_sub['A'] = 50.0
+    rxn_info_sub['E'] = 15000.0
+    rxn_info_sub['R'] = 1.0
+    sub_rxn = reaction_models_included.basic_rxn(rxn_info_sub, material_info)
+    my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
+
+    my_v = np.array([500, 100, 0, 1400, 1000])
+    my_k_true = 1.0e+9*np.exp(-100000/(8.314*my_v[-1]))
+    my_k_dT = my_k_true*(100000/(8.314*my_v[-1]**2))
+    sub_k = 50.0*np.exp(-15000/my_v[-1])
+    sub_k_dT = sub_k*15000/my_v[-1]**2
+    err = np.abs(sub_rxn.evaluate_rate_constant(my_v) - sub_k)
+    err += np.abs(sub_rxn.evaluate_rate_constant_derivative(my_v, sub_k) - sub_k_dT)
+
+    err += np.abs(my_rxn.evaluate_rate_constant(my_v) - my_k_true*sub_k)
+    full_der = my_k_true*sub_k_dT + my_k_dT*sub_k
+    err += np.abs(my_rxn.evaluate_rate_constant_derivative(my_v, my_k_true*sub_k) - full_der)
+
+    test_passed = 0
+    if err > 1e-15:
+        print('\tFailed: incorrect rate constant computation.\n')
+    else:
+        print('\tPassed\n')
+        test_passed = 1
+    return test_passed
+
+
+def damkohler_anode_test():
+    print('Testing Damkohler limiter on the critical thickness anode...')
+    # Parse file
+    a_parser = input_parser.input_parser('./Inputs/damkohler_anode.yaml')
+    mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
+    reac_sys = reac_man.reaction_systems[0]
+
+    # Build variable vector
+    my_v = np.zeros(reac_man.n_species+1)
+    for i in range(len(reac_man.species_name_list)):
+        my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
+    my_v[-1] = time_opts['T Initial']
+    my_k = reac_sys.evaluate_rate_constant(my_v)
+
+    # Compute function at base inputs
+    reac_sys = reac_man.reaction_systems[0]
+    my_f = reac_sys.evaluate_ode(0, my_v)
+
+    # Compute zcrit portion
+    my_rxn = reac_sys.model_list[0].my_funcs[0]
+    rho_50 = my_rxn.rxn_info['BET_C6']*my_rxn.rho*my_rxn.rxn_info['Y_Graphite']/200.0
+    rho_fun = my_v[my_rxn.name_map['C6Li']]*my_v[my_rxn.name_map['EC']]/(rho_50 + my_v[my_rxn.name_map['EC']])
+    crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_v[my_rxn.name_map['Li2CO3']])
+    conc_fun_1 = my_rxn.a_e_crit*rho_fun*crit_fun
+    r_1 = -1.*my_rxn.A*conc_fun_1*np.exp(-my_rxn.EoR/time_opts['T Initial'])
+
+    # Compute Damkohler portion with hard coded true values
+    dam_info = my_rxn.rxn_info['Damkohler']
+    AD = 1141791418.7518132
+    EDoR = 12027.181430031871
+    Da = 1.0/(1 + AD*np.exp(-EDoR/my_v[-1]))
+
+    err = np.abs(r_1[0]*Da*2*79.007/(2*79.007 + 88.062) - my_f[0])
+
+    if err > 1e-12:
+        print('\tFailed with RMSE {:0.2e}\n'.format(err))
+        return 0
+    else:
+        print('\tPassed\n')
+        return 1
+
+
+
 if __name__ == '__main__':
     single_rxn_temperature_ramp(plotting=True)
 
-    fd_check('jac_test')
+    fd_check('jac_test', e_thresh=1e-4, du=1e-2)
 
     fd_check('jac_test_single')
 
@@ -395,7 +550,7 @@ if __name__ == '__main__':
 
     short_rxn_CoO2()
 
-    fd_check('anode_only', grad_check=True)
+    fd_check('anode_only', grad_check=False, e_thresh=2e-7, du=1e-6)
 
     zcrit_rxn()
 
@@ -406,3 +561,13 @@ if __name__ == '__main__':
     three_unique_system_test()
 
     map_system_index_to_node_test()
+
+    concentration_product_rule_test()
+
+    rate_constant_product_rule_test_ec()
+
+    rate_constant_product_rule_test_exp()
+
+    damkohler_anode_test()
+
+    fd_check('damkohler_anode', grad_check=False, e_thresh=4e-6, du=1e-6)

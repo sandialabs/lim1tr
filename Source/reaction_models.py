@@ -24,3 +24,6 @@ try:
     rxn_model_dictionary.update(rxn_model_dictionary_user)
 except ImportError:
     pass
+
+# Include sub-models
+from reaction_submodels import *
