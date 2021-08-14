@@ -1,0 +1,121 @@
+# This model implements the "Damkohler Limiter" from Kurzawski et al. https://doi.org/10.1016/j.proci.2020.06.270
+# The target application is the 5 cell stack from Torres-Castro et al. https://doi.org/10.1149/1945-7111/ab84fa
+Materials:
+    A:
+        k: 0.5
+        rho: 1815.759421
+        cp: 778.0
+    B:
+        k: 0.36
+        rho: 1356.0
+        cp: 1500.0
+
+Species:
+    Names: ['EC', 'C6Li', 'SEI', 'Salt1', 'Li2CO3', 'C6', 'CoO2', 'Co3O4', 'LiCoO2', 'AllGas', 'Container']
+    Initial Mass Fraction: [0.05390021822, 0.1328782311, 0.01361898014, 0.0, 0.0, 0.0, 0.1468153507, 0.005399760104, 0.0, 0.001507452446, 0.64588000729]
+    Molecular Weights: [88.062, 79.007, 161.952, 73.89, 73.89, 72.066, 90.931, 240.795, 97.872, 1.0, 0.0]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 3.707251453e+16
+        E: 16236.69493
+        R: 1
+        H: -635000.0
+        Reactants:
+            'SEI': 1
+        Products:
+            'Salt1': 1
+            'AllGas': 88.062
+        Orders:
+            'SEI': 0.5
+    2:
+        A: 3.2718e+13
+        E: 135000.0
+        R: 8.3145
+        H: -2287100.0
+        Reactants:
+            'C6Li': 2
+            'EC': 1
+        Products:
+            'C6': 2
+            'Li2CO3': 1
+            'AllGas': 28.054
+        Type: 'Zcrit'
+        BET_C6: 1.1
+        tau_crit: 0.08
+        C_t: 72.5
+        Y_Graphite: 0.1212044831
+        Electrolyte Limiter:
+            Species: 'EC'
+            Limiting Constant: 1.2
+        Damkohler:
+            D: 3.67e-14     # m2/s
+            E: 35000.0      # J/mol
+            A: 2.1e+13      # 1/s
+            r_i: 1.0e-6     # m
+            r_o: 2.0e-6     # m
+    3:
+        A: 1539795175.0
+        E: 122520.0
+        R: 8.3145
+        H: -1732228.705
+        Reactants:
+            'CoO2': 3
+            'EC': 0.4
+        Products:
+            'Co3O4': 1
+            'AllGas': 67.2228
+        Orders:
+            'CoO2': 1.0
+            'Co3O4': 1.0
+        a_edges: 348.225659632 # m2/kg
+        Damkohler:
+            D: 2.0e-14      # m2/s
+            E: 29000.0      # J/mol
+            A: 6.667e+11    # 1/s
+            r_i: 1.0e-6     # m
+            r_o: 2.0e-6     # m
+    4:
+        Reactants:
+            'C6Li': 1
+            'CoO2': 1
+        Products:
+            'C6': 1
+            'LiCoO2': 1
+        Type: 'Short'
+        Voltage: 4.2
+        Short Resistance: 0.008
+        Volume: 3.36e-5
+        Active Cells: [1]
+
+Domain Table:
+    Material Name: [B,A,A,A,A,A,B]
+    Thickness: [0.0127,0.0074,0.0074,0.0074,0.0074,0.0074,0.0127]
+    dx: [0.0004,0.0001,0.0001,0.0001,0.0001,0.0001,0.0004]
+    Contact Resistance: [0.004, 0.004, 0.004, 0.004, 0.004, 0.004]
+
+Boundary:
+    External:
+        Type: Convection
+        h: 5.
+        T: 298.15
+    Left:
+        Type: Convection
+        h: 5.
+        T: 298.15
+    Right:
+        Type: Convection
+        h: 5.
+        T: 298.15
+
+Time:
+    Run Time: 100.0
+    T Initial: 298.15
+    dt: 0.005
+    Order: 2
+    Output Frequency: 20
+
+Other:
+    Y Dimension: 0.13
+    Z Dimension: 0.0355
