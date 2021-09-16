@@ -42,6 +42,9 @@ class eqn_sys:
                 if reac_man.rxn_only:
                     print('SOL: Reaction only.')
                     self.transient_solve = self.transient_ode_solve
+                    if self.n_tot > 1:
+                        err_str = 'Reaction Only mode not available with more than one control volume.'
+                        raise ValueError(err_str)
                 else:
                     print('SOL: Split solve with reactions.')
                     self.transient_solve = self.split_solve

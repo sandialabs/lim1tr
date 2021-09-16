@@ -29,6 +29,7 @@ class grid_manager:
         # Loop through material layers
         self.n_tot = 0
         mat_nodes = []
+        nodes_per_layer = []
         self.mint_list = []
         self.first_node_list = []
         dx_list = []
@@ -42,6 +43,7 @@ class grid_manager:
 
             # Calculate number of nodes
             n_m = int(np.round(self.layer_thickness[i]/self.layer_dx[i],0))
+            nodes_per_layer.append(n_m)
 
             # Total up nodes
             self.n_tot += n_m
@@ -55,6 +57,17 @@ class grid_manager:
 
             # Save node number on the left of each interface (includes right domain bc)
             self.mint_list.append(self.n_tot - 1)
+
+        # Check for single node layers
+        single_node_layers = []
+        if self.n_layers > 1:
+            for i in range(self.n_layers):
+                if nodes_per_layer[i] <= 1:
+                    single_node_layers.append(i)
+        if len(single_node_layers) > 0:
+            err_str = 'Only 1 control volume on layer(s) {}!\n'.format(single_node_layers)
+            err_str += 'Minimum of 2 control volumes required for conduction problems.'
+            raise ValueError(err_str)
 
         # Recast list of material types as an array
         self.mat_nodes = np.asarray(mat_nodes)
