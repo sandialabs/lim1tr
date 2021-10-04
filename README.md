@@ -29,4 +29,6 @@ Output is saved in a pickle file as a list of the following objects:
 - Numba
 - PyYAML
 
-A full user guide is in preparation.
+### User Guide
+The user guide for version 1.0 can be found at
+https://www.sandia.gov/ess-ssl/wp-content/uploads/2021/10/LIM1TR_Guide_SAND2021-12281.pdf
