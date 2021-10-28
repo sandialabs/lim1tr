@@ -115,7 +115,7 @@ def short_rxn_C6Li():
     err = np.sqrt(np.mean((rho_C6Li - data_man.data_dict['C6Li'][:,0])**2))
     err += np.sqrt(np.mean((T_ans - data_man.data_dict['Temperature'][:,0])**2))
 
-    if err > 2e-7:
+    if err > 1e-5:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
         return 0
     else:
@@ -156,7 +156,7 @@ def short_rxn_CoO2():
     err = np.sqrt(np.mean((rho_CoO2 - data_man.data_dict['CoO2'][:,0])**2))
     err += np.sqrt(np.mean((T_ans - data_man.data_dict['Temperature'][:,0])**2))
 
-    if err > 1e-7:
+    if err > 1e-5:
         print('\tFailed with RMSE {:0.2e}\n'.format(err))
         return 0
     else:

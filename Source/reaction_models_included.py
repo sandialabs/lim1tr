@@ -54,23 +54,34 @@ class simple_short(reaction_model_base.rxn_model):
 
         charge_kmol = 1000*6.022e23*1.6023e-19
         total_reactants = 0.0
-        self.reactants = self.rxn_info['Reactants'].keys()
+        self.reactants = list(self.rxn_info['Reactants'].keys())
         for key in self.rxn_info['Reactants']:
             total_reactants += self.rxn_info['Reactants'][key]
         self.A = voltage*total_reactants/(short_resistance*charge_kmol*volume)
         self.H_rxn = voltage*charge_kmol/total_reactants
+        self.short_lim = 1e-6
 
 
     def concentration_function(self, my_v):
         conc_func = 1.0
         for reactant in self.reactants:
             if my_v[self.name_map[reactant]] < self.small_number:
-                conc_func = 0.0
+                conc_func *= 0.0
+            else:
+                conc_func *= my_v[self.name_map[reactant]]/(self.short_lim + my_v[self.name_map[reactant]])
         return conc_func
 
 
     def concentration_derivative(self, my_v):
-        return np.zeros(self.n_species)
+        my_dr_part_col = np.zeros(self.n_species)
+        for reactant in self.reactants:
+            dr_dv = self.short_lim/(self.name_map[reactant] + self.short_lim)**2
+            for other_reactant in self.reactants:
+                if reactant not in other_reactant:
+                    v_conc = my_v[self.name_map[other_reactant]]
+                    dr_dv *= v_conc/(self.short_lim + v_conc)
+            my_dr_part_col[self.name_map[reactant]] = dr_dv
+        return my_dr_part_col
 
 
 class zcrit(reaction_model_base.rxn_model):

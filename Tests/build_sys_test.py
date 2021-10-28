@@ -11,6 +11,7 @@
 import numpy as np
 import sys
 import unit_meshes
+from unit_mocks import time_opts_mock
 sys.path.append('../Source')
 import conduction
 import boundary
@@ -24,7 +25,7 @@ def cond_apply_test():
     k_a = 10.
     grid_man, mat_man = unit_meshes.mesh_one(dx_a=dx_a,k_a=k_a)
     cond_man = conduction.conduction_manager(grid_man)
-    eqn_sys = equation_sys.eqn_sys(grid_man, False, 'Steady', 1, 1)
+    eqn_sys = equation_sys.eqn_sys(grid_man, False, time_opts_mock)
 
     # Do the apply
     cond_man.apply(eqn_sys, mat_man)
@@ -73,7 +74,7 @@ def bc_apply_test():
     dx_a = 0.5
     k_a = 10.
     grid_man, mat_man = unit_meshes.mesh_one(dx_a=dx_a,k_a=k_a)
-    eqn_sys = equation_sys.eqn_sys(grid_man, False, 'Steady', 1, 1)
+    eqn_sys = equation_sys.eqn_sys(grid_man, False, time_opts_mock)
     bc_man = boundary.bc_manager(grid_man)
 
     # Set the boundary terms

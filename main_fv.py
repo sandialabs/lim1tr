@@ -45,8 +45,7 @@ class lim1tr_model:
         cond_man = conduction.conduction_manager(grid_man)
 
         # Initialize equation system
-        eqn_sys = equation_sys.eqn_sys(grid_man, reac_man,
-            time_opts['Solution Mode'], time_opts['Order'], time_opts['Print Progress'])
+        eqn_sys = equation_sys.eqn_sys(grid_man, reac_man, time_opts)
 
         # Initialize linear solver (for numba)
         eqn_sys.init_linear_solver()

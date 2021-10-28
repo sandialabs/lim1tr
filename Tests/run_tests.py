@@ -13,7 +13,8 @@ import material_test
 import steady_cond
 import trans_cond
 import reaction_test
-import os, time
+import parallel_reaction_test
+import os, sys, time
 
 
 # Make figures folder
@@ -72,6 +73,12 @@ test_status.append(reaction_test.map_system_index_to_node_test())
 test_status.append(reaction_test.concentration_product_rule_test())
 test_status.append(reaction_test.rate_constant_product_rule_test_ec())
 test_status.append(reaction_test.rate_constant_product_rule_test_exp())
+
+# Parallel reaction tests
+if sys.version_info[0] >= 3:
+    test_status.append(parallel_reaction_test.parallel_node_map_test())
+else:
+    print('Python 2 detected, skipping parallel tests...')
 
 print('Complete')
 print('Passed {} of {} tests in {:0.3f} seconds.'.format(sum(test_status), len(test_status), time.time() - start_time))

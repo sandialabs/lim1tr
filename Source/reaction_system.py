@@ -12,6 +12,7 @@ from __future__ import division
 import numpy as np
 from scipy.integrate import solve_ivp
 import reaction_models
+import time
 
 
 class reaction_system:
@@ -41,11 +42,14 @@ class reaction_system:
         self.aug_mat = np.concatenate((self.frac_mat, aug_row), axis=0)
 
 
-    def solve_ode_node(self, t_arr, v_in, dt0=1e-6, atol=1e-6, rtol=1e-6, nsteps=5000):
+    def solve_ode_node(self, t_arr, v_in, dt0=1e-6, atol=1e-6, rtol=1e-7):
         # Solve system
+        t_st = time.time()
         sol = solve_ivp(self.evaluate_ode, (t_arr[0], t_arr[-1]),
             v_in, method='LSODA', rtol=rtol, atol=atol, jac=self.evaluate_jacobian,
             t_eval=t_arr, first_step=dt0)
+        if sol.status != 0:
+            print('ODE Int Error {}'.format(sol.status))
 
         return sol.y.T, sol.status
 

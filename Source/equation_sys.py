@@ -12,13 +12,17 @@ from __future__ import division
 import numpy as np
 import solvers
 import time
+import multiprocessing as mp
 
 
 class eqn_sys:
-    def __init__(self, grid_man, reac_man, sol_mode, time_order, print_progress):
+    def __init__(self, grid_man, reac_man, time_opts):
+        sol_mode = time_opts['Solution Mode']
+        self.n_cores = time_opts['Number of Cores']
+        self.pool = None
         self.n_tot = grid_man.n_tot
         self.dx_arr = grid_man.dx_arr
-        self.print_progress = print_progress
+        self.print_progress = time_opts['Print Progress']
 
         # Linear conduction system
         self.LHS_c = np.zeros(self.n_tot)
@@ -39,18 +43,24 @@ class eqn_sys:
                 print('SOL: Forcing split solve.')
                 self.transient_solve = self.split_solve
             elif reac_man:
-                if reac_man.rxn_only:
-                    print('SOL: Reaction only.')
-                    self.transient_solve = self.transient_ode_solve
-                    if self.n_tot > 1:
-                        err_str = 'Reaction Only mode not available with more than one control volume.'
-                        raise ValueError(err_str)
-                else:
-                    print('SOL: Split solve with reactions.')
-                    self.transient_solve = self.split_solve
+                self.init_reac(reac_man.rxn_only)
             else:
                 print('SOL: No reaction manager found. Transient linear solve.')
                 self.transient_solve =  self.transient_linear_solve
+
+
+    def init_reac(self, rxn_only):
+        if rxn_only:
+            print('SOL: Reaction only.')
+            self.transient_solve = self.transient_ode_solve
+            if self.n_tot > 1:
+                err_str = 'Reaction Only mode not available with more than one control volume.'
+                raise ValueError(err_str)
+        else:
+            print('SOL: Split solve with reactions.')
+            if self.n_cores > 1:
+                self.pool = mp.Pool(self.n_cores)
+            self.transient_solve = self.split_solve
 
 
     def print_sys(self):
@@ -93,6 +103,11 @@ class eqn_sys:
 
         # Save timing for each step
         step_time = []
+        self.time_diffusion = 0
+        self.time_ode = 0
+        self.time_ode_solve = 0
+        self.time_ode_update = 0
+        self.time_data = 0
 
         while ((t_int.end_time - t_int.tot_time) > 1e-10) and (t_int.n_step < t_int.max_steps):
 
@@ -108,17 +123,30 @@ class eqn_sys:
             if (t_int.n_step >= t_int.max_steps):
                 print('Reached the maximum number of time steps. Exiting.')
 
+        if self.pool is not None:
+            self.pool.close()
+
         print('Total Solve Time: {:0.2f} s'.format(sum(step_time)))
+        print('\tDiffusion Solve Time: {:0.2f} s'.format(self.time_diffusion))
+        print('\tReaction Solve Time: {:0.2f} s'.format(self.time_ode))
+        print('\t\tODE Solve Time: {:0.2f} s'.format(self.time_ode_solve))
+        print('\t\tODE Update Time: {:0.2f} s'.format(self.time_ode_update))
+        print('\tData Storage Time: {:0.2f} s'.format(self.time_data))
 
         # Write data to a pickle
+        time_st = time.time()
         data_man.write_data()
 
         # Compile data
         print('Compiling data...')
         data_man.compile_data()
 
+        print('\tData Compiling Time: {:0.2f} s'.format(time.time() - time_st))
+
 
     def transient_linear_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
+        time_st = time.time()
+
         # Apply linear terms
         self.apply_linear_operators(mat_man, cond_man, bc_man, t_int, False)
 
@@ -131,6 +159,8 @@ class eqn_sys:
 
         # Call data manager
         data_man.save_data(t_int, reac_man)
+
+        self.time_diffusion += time.time() - time_st
 
 
     def split_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
@@ -152,21 +182,23 @@ class eqn_sys:
         # Reset linear system
         self.clean()
 
-        time_1 = time.time() - time_1_st
+        self.time_diffusion += time.time() - time_1_st
 
         #########################
         ### S2 ODE solve (dt) ###
         #########################
 
-        time_2_st = time.time()
-
         if reac_man:
             # Call the reaction manager and advance temperature and density
             # Return only the temperature. The reaction manager manages densities.
+            time_2_st = time.time()
             t_arr = np.array([t_int.tot_time, t_int.tot_time + t_int.dt])
-            t_int.T_star, err_list = reac_man.solve_ode_all_nodes(t_arr, t_int.T_star)
+            t_int.T_star, err_list = reac_man.solve_ode_all_nodes(
+                t_arr, t_int.T_star, pool=self.pool, n_cores=self.n_cores)
 
-        time_2 = time.time() - time_2_st
+            self.time_ode += time.time() - time_2_st
+            self.time_ode_solve += reac_man.solve_ode_time
+            self.time_ode_update += reac_man.update_dofs_time
 
         ##############################
         ### S3 linear solve (dt/2) ###
@@ -183,10 +215,12 @@ class eqn_sys:
         # Update temperature arrays
         t_int.post_solve(self, self.T_lin)
 
-        # Call data manager
-        data_man.save_data(t_int, reac_man)
+        self.time_diffusion += time.time() - time_3_st
 
-        time_3 = time.time() - time_3_st
+        # Call data manager
+        time_4_st = time.time()
+        data_man.save_data(t_int, reac_man)
+        self.time_data += time.time() - time_4_st
 
 
     def apply_linear_operators(self, mat_man, cond_man, bc_man, t_int, split_step):
@@ -208,12 +242,18 @@ class eqn_sys:
     def transient_ode_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
         # Call the reaction manager and advance temperature and density
         # Return only the temperature. The reaction manager will manage densities.
+        time_2_st = time.time()
         t_arr = np.array([t_int.tot_time, t_int.tot_time + t_int.dt])
         T_sol, err_list = reac_man.solve_ode_all_nodes(t_arr, t_int.T_star)
 
         # Update temperature arrays
         t_int.post_solve(self, T_sol)
+        self.time_ode += time.time() - time_2_st
+        self.time_ode_solve += reac_man.solve_ode_time
+        self.time_ode_update += reac_man.update_dofs_time
 
         # Call data manager
+        time_4_st = time.time()
         data_man.save_data(t_int, reac_man)
+        self.time_data += time.time() - time_4_st
 
