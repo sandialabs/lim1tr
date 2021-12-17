@@ -23,14 +23,8 @@ class conduction_manager:
             grid_man (object): grid manager
         '''
         self.dx_arr  = grid_man.dx_arr
-        self.idx_arr = np.reciprocal( self.dx_arr ) 
-
-        self.n_layers = grid_man.n_layers
+        self.idx_e = np.reciprocal(0.5*(self.dx_arr[:-1] + self.dx_arr[1:]))
         self.n_tot = grid_man.n_tot
-        self.k_arr = np.zeros(self.n_tot - 1)
-
-        self.internal_bounds = grid_man.internal_bounds
-        self.k_bounds = grid_man.k_bounds
 
 
     def apply(self, eqn_sys, mat_man):
@@ -40,60 +34,17 @@ class conduction_manager:
             eqn_sys (object): equation system object
             mat_man (object): material manager object
         '''
-        # Internal nodes
-        for m in range(self.n_layers):
-            # Save off bounds
-            bnds = self.internal_bounds[m]
+        # Loop over faces
+        for i in range(self.n_tot-1):
+            h_face = mat_man.k_arr[i]*self.idx_e[i]
 
-            for i in range(bnds[0],bnds[1]):
-                # Left (lower diagonal)
-                eqn_sys.LHS_l[i] -= mat_man.k_arr[i-1]/self.dx_arr[i]
+            # Left node
+            eqn_sys.LHS_c[i] += h_face
+            eqn_sys.LHS_u[i] -= h_face
 
-                # Center (diagonal)
-                eqn_sys.LHS_c[i] += (mat_man.k_arr[i-1] + mat_man.k_arr[i])/self.dx_arr[i]
-
-                # Right (upper diagonal)
-                eqn_sys.LHS_u[i] -= mat_man.k_arr[i]/self.dx_arr[i]
-
-        # Domain boundary nodes
-        # Center (diagonal)
-        eqn_sys.LHS_c[0] += mat_man.k_arr[0]/self.dx_arr[0]
-
-        # Right (upper diagonal)
-        eqn_sys.LHS_u[0] -= mat_man.k_arr[0]/self.dx_arr[0]
-
-        # Left (lower diagonal)
-        eqn_sys.LHS_l[self.n_tot-1] -= mat_man.k_arr[self.n_tot-2]/self.dx_arr[self.n_tot-1]
-
-        # Center (diagonal)
-        eqn_sys.LHS_c[self.n_tot-1] += mat_man.k_arr[self.n_tot-2]/self.dx_arr[self.n_tot-1]
-
-        # Material interfaces
-        for m in range(self.n_layers - 1):
-            # Interface left node
-            i_n = self.k_bounds[m][1]
-
-            # Effective dx
-            dx_e = 0.5*(self.dx_arr[i_n] + self.dx_arr[i_n+1])
-            h_cont = mat_man.k_arr[i_n]/dx_e
-
-            # Left (lower diagonal)
-            eqn_sys.LHS_l[i_n] -= mat_man.k_arr[i_n-1]/self.dx_arr[i_n]
-
-            # Center (diagonal)
-            eqn_sys.LHS_c[i_n] += (mat_man.k_arr[i_n-1]/self.dx_arr[i_n]) + h_cont
-
-            # Right (upper diagonal)
-            eqn_sys.LHS_u[i_n] -= h_cont
-
-            # Left (lower diagonal)
-            eqn_sys.LHS_l[i_n+1] -= h_cont
-
-            # Center (diagonal)
-            eqn_sys.LHS_c[i_n+1] += (mat_man.k_arr[i_n+1]/self.dx_arr[i_n+1]) + h_cont
-
-            # Right (upper diagonal)
-            eqn_sys.LHS_u[i_n+1] -= mat_man.k_arr[i_n+1]/self.dx_arr[i_n+1]
+            # Right node
+            eqn_sys.LHS_l[i+1] -= h_face
+            eqn_sys.LHS_c[i+1] += h_face
 
 
     def apply_operator(self, eqn_sys, mat_man, T):
@@ -103,37 +54,13 @@ class conduction_manager:
             eqn_sys (object) : equation system object
             mat_man (object) : material manager object
             T       (array)  : temperature at previous step
-        '''        
-        # Internal nodes
-        for m in range(self.n_layers):
-            # Save off bounds
-            bnds = self.internal_bounds[m]
+        '''
+        # Loop over faces
+        for i in range(self.n_tot-1):
+            h_face = mat_man.k_arr[i]*self.idx_e[i]
 
-            # apply internal stencil
-            for i in range( bnds[0], bnds[1] ):
-                k_l = mat_man.k_arr[i-1]
-                k_r = mat_man.k_arr[i] 
-                eqn_sys.RHS[i] += ( k_l * T[i-1] - ( k_l + k_r ) * T[i] + k_r * T[i+1] ) * self.idx_arr[i]
+            # Left node
+            eqn_sys.RHS[i] += h_face*(T[i+1] - T[i])
 
-        # Domain boundary nodes        
-        n = self.n_tot-1
-        eqn_sys.RHS[0] += mat_man.k_arr[0]*(T[1] - T[0])*self.idx_arr[0]
-        eqn_sys.RHS[n] += mat_man.k_arr[n-1]*(T[n-1] - T[n])*self.idx_arr[n]
-
-        # Material interfaces
-        for m in range(self.n_layers - 1):
-            # Interface left node
-            i_n = self.k_bounds[m][1]
-
-            # Effective dx
-            dx_e = 0.5*(self.dx_arr[i_n] + self.dx_arr[i_n+1])
-            h_cont = mat_man.k_arr[i_n]/dx_e
-
-            # apply stencil
-            coeff_l = mat_man.k_arr[i_n-1]/self.dx_arr[i_n]
-            coeff_r = h_cont
-            eqn_sys.RHS[i_n] += (coeff_l*T[i_n-1] - (coeff_l + coeff_r)*T[i_n] + coeff_r*T[i_n+1])
-
-            coeff_l = h_cont
-            coeff_r = mat_man.k_arr[i_n+1]/self.dx_arr[i_n+1]
-            eqn_sys.RHS[i_n+1] += (coeff_l*T[i_n] - (coeff_l + coeff_r)*T[i_n+1] + coeff_r*T[i_n+2])
+            # Right node
+            eqn_sys.RHS[i+1] += h_face*(T[i] - T[i+1])

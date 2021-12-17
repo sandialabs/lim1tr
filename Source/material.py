@@ -41,7 +41,8 @@ class material_manager:
         self.k_arr = np.zeros(self.n_tot - 1)
         self.m_arr = np.zeros(self.n_tot)
 
-        self.k_bounds = grid_man.k_bounds
+        self.interface_ids = grid_man.interface_ids
+        self.internal_ids = grid_man.internal_ids
 
 
     def add_material(self, fv_mat, m_name):
@@ -86,24 +87,19 @@ class material_manager:
 
         # Evaluate interface properties
         # Internal interfaces
-        for m in range(self.n_layers):
-            # Save off bounds
-            bnds = self.k_bounds[m]
-
-            for i in range(bnds[0],bnds[1]):
-                self.k_arr[i] = self.get_material(self.mat_nodes[i]).eval_k()
+        for i in self.internal_ids:
+            self.k_arr[i] = self.get_material(self.mat_nodes[i]).eval_k()
 
         # Material interfaces
-        for m in range(self.n_layers - 1):
-            # Material interface node
-            i_n = self.k_bounds[m][1]
-
-            kt_i = self.get_material(self.mat_nodes[i_n]).eval_k()
-            kt_i1 = self.get_material(self.mat_nodes[i_n+1]).eval_k()
-            R_i = 0.5*self.dx_arr[i_n]/kt_i
-            R_i1 = 0.5*self.dx_arr[i_n + 1]/kt_i1
+        m = 0
+        for i in self.interface_ids:
+            kt_i = self.get_material(self.mat_nodes[i]).eval_k()
+            kt_i1 = self.get_material(self.mat_nodes[i+1]).eval_k()
+            R_i = 0.5*self.dx_arr[i]/kt_i
+            R_i1 = 0.5*self.dx_arr[i+1]/kt_i1
             R_tot = R_i + R_i1 + self.cont_res[m]
-            self.k_arr[i_n] = 0.5*(self.dx_arr[i_n] + self.dx_arr[i_n + 1])/R_tot
+            self.k_arr[i] = 0.5*(self.dx_arr[i] + self.dx_arr[i+1])/R_tot
+            m += 1
 
 
 class fv_material:

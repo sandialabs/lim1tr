@@ -36,8 +36,6 @@ class grid_mock:
         self.first_node_list = [0]
         self.mat_nodes = np.asarray(self.layer_names*self.n_tot)
         self.dx_arr = np.zeros(self.n_tot) + self.layer_dx[0]
-        self.internal_bounds = [[1, self.mint_list[0]]]
-        self.k_bounds = [[0, self.mint_list[0]]]
         self.x_node = np.zeros(self.n_tot)
         for i in range(self.n_tot):
             self.x_node[i] = 0.5*self.dx_arr[i] + np.sum(self.dx_arr[:i])
