@@ -38,13 +38,8 @@ def quick_plot(x_node, T_ans, T_lin, MSE, fig_name, raw_diff=False):
     plt.close()
 
 
-def simple_steady_cond(plotting=False):
-    print('Testing steady dirichlet conduction...')
-    # Supply file name
-    file_name = os.getcwd() + '/Inputs/simple_cond.yaml'
-
+def simple_steady_cond_base(model, plot_name, plotting=False):
     # Run model
-    model = main_fv.lim1tr_model(file_name)
     eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
     # Pull constants out of parser
@@ -65,7 +60,7 @@ def simple_steady_cond(plotting=False):
 
     err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
     if plotting:
-        quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'simple_steady_cond')
+        quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, plot_name)
 
     if err > 1e-16:
         print('\tFailed with MSE {:0.2e}\n'.format(err))
@@ -73,6 +68,58 @@ def simple_steady_cond(plotting=False):
     else:
         print('\tPassed\n')
         return 1
+
+
+def simple_steady_cond_one_block(plotting=False):
+    print('Testing steady dirichlet conduction...')
+    # Supply file name
+    file_name = '{}/Inputs/simple_cond.yaml'.format(os.getcwd())
+
+    model = main_fv.lim1tr_model(file_name)
+    test_status = simple_steady_cond_base(model, 'simple_steady_cond_one_block', plotting=plotting)
+    return test_status
+
+
+def simple_steady_cond_two_blocks(plotting=False):
+    print('Testing steady dirichlet conduction...')
+    # Supply file name
+    file_name = '{}/Inputs/simple_cond.yaml'.format(os.getcwd())
+
+    model = main_fv.lim1tr_model(file_name)
+    model.parser.cap_dict['Domain Table'] = {
+        'Material Name': ['A', 'A'],
+        'Thickness': [0.05, 0.05],
+        'dx': [0.001, 0.001]}
+    test_status = simple_steady_cond_base(model, 'simple_steady_cond_two_blocks', plotting=plotting)
+    return test_status
+
+
+def simple_steady_cond_two_blocks_left_cv(plotting=False):
+    print('Testing steady dirichlet conduction...')
+    # Supply file name
+    file_name = '{}/Inputs/simple_cond.yaml'.format(os.getcwd())
+
+    model = main_fv.lim1tr_model(file_name)
+    model.parser.cap_dict['Domain Table'] = {
+        'Material Name': ['A', 'A'],
+        'Thickness': [0.001, 0.099],
+        'dx': [0.001, 0.001]}
+    test_status = simple_steady_cond_base(model, 'simple_steady_cond_two_blocks_left_cv', plotting=plotting)
+    return test_status
+
+
+def simple_steady_cond_two_blocks_right_cv(plotting=False):
+    print('Testing steady dirichlet conduction...')
+    # Supply file name
+    file_name = '{}/Inputs/simple_cond.yaml'.format(os.getcwd())
+
+    model = main_fv.lim1tr_model(file_name)
+    model.parser.cap_dict['Domain Table'] = {
+        'Material Name': ['A', 'A'],
+        'Thickness': [0.099, 0.001],
+        'dx': [0.001, 0.001]}
+    test_status = simple_steady_cond_base(model, 'simple_steady_cond_two_blocks_right_cv', plotting=plotting)
+    return test_status
 
 
 def end_conv_steady_cond(plotting=False):
@@ -283,7 +330,13 @@ def left_conv_right_flux(plotting=False):
 
 
 if __name__ == '__main__':
-    simple_steady_cond(plotting=True)
+    simple_steady_cond_one_block(plotting=True)
+
+    simple_steady_cond_two_blocks(plotting=True)
+
+    simple_steady_cond_two_blocks_left_cv(plotting=True)
+
+    simple_steady_cond_two_blocks_right_cv(plotting=True)
 
     end_conv_steady_cond(plotting=True)
 

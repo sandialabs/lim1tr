@@ -31,7 +31,10 @@ test_status.append(build_sys_test.bc_apply_test())
 test_status.append(material_test.k_interface())
 
 # Steady conduction tests
-test_status.append(steady_cond.simple_steady_cond())
+test_status.append(steady_cond.simple_steady_cond_one_block())
+test_status.append(steady_cond.simple_steady_cond_two_blocks())
+test_status.append(steady_cond.simple_steady_cond_two_blocks_left_cv())
+test_status.append(steady_cond.simple_steady_cond_two_blocks_right_cv())
 test_status.append(steady_cond.end_conv_steady_cond())
 test_status.append(steady_cond.end_conv_steady_cond_stack())
 test_status.append(steady_cond.exterior_steady_cond())

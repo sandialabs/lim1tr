@@ -58,16 +58,11 @@ class grid_manager:
             # Save node number on the left of each interface (includes right domain bc)
             self.mint_list.append(self.n_tot - 1)
 
-        # Check for single node layers
-        single_node_layers = []
-        if self.n_layers > 1:
-            for i in range(self.n_layers):
-                if nodes_per_layer[i] <= 1:
-                    single_node_layers.append(i)
-        if len(single_node_layers) > 0:
-            err_str = 'Only 1 control volume on layer(s) {}!\n'.format(single_node_layers)
-            err_str += 'Minimum of 2 control volumes required for conduction problems.'
-            raise ValueError(err_str)
+        # Split internal CV faces in to material interfaces and internal faces
+        self.interface_ids = [self.first_node_list[i]-1 for i in range(1,len(self.first_node_list))]
+        self.internal_ids = [i for i in range(self.n_tot - 1)]
+        for item in self.interface_ids:
+            self.internal_ids.remove(item)
 
         # Recast list of material types as an array
         self.mat_nodes = np.asarray(mat_nodes)
@@ -79,13 +74,6 @@ class grid_manager:
             self.dx_arr[i] = dx_list[m]
             if i == self.mint_list[m]:
                 m += 1
-
-        # Build bounds lists
-        self.internal_bounds = [[1, self.mint_list[0]]]
-        self.k_bounds = [[0, self.mint_list[0]]]
-        for m in range(1, self.n_layers):
-            self.internal_bounds.append([self.mint_list[m-1]+2, self.mint_list[m]])
-            self.k_bounds.append([self.mint_list[m-1]+1, self.mint_list[m]])
 
         # Build node locations
         self.x_node = np.zeros(self.n_tot)
