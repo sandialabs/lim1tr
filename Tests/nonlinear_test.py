@@ -8,22 +8,23 @@
 #                                                                                      #
 ########################################################################################
 
-import unittest
-import os, sys, time
-from build_sys_test import build_tests
-from material_test import material_tests
-from steady_cond import steady_cond_tests
-from trans_cond import trans_cond_tests
-from reaction_test import reaction_tests
-from reaction_manager_test import reaction_manager_tests
-from sub_reaction_test import sub_reaction_tests
-if sys.version_info[0] >= 3:
-    from parallel_reaction_test import parallel_reaction_tests
+from __future__ import division
+import numpy as np
+import scipy as sp
+import time, sys, os
+sys.path.append('../')
+import main_fv
+
+
+
+def trans_end_conv(plotting=False):
+    file_name = os.getcwd() + '/Inputs/trans_end_conv_bdf1.yaml'
+
+    # Run model
+    model = main_fv.lim1tr_model(file_name)
+    model.parser.cap_dict['Time']['Run Time'] = model.parser.cap_dict['Time']['dt']
+    eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
 
 if __name__ == '__main__':
-    # Make figures folder
-    if not os.path.exists('Figures'):
-        os.mkdir('Figures')
-
-    unittest.main()
+    trans_end_conv()

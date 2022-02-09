@@ -9,6 +9,7 @@
 ########################################################################################
 
 from __future__ import division
+import unittest
 import numpy as np
 import time, sys, os, copy
 import multiprocessing as mp
@@ -37,52 +38,48 @@ class parallel_reaction_mock(reaction.reaction_manager):
         return 0.0
 
 
-def parallel_node_map_test():
-    print('Testing parallel ODE solves...')
-    if sys.version_info[0] < 3:
-        print('Python 2 detected, skipping parallel tests...')
-        return 0
+class parallel_reaction_tests(unittest.TestCase):
+    def test_parallel_node_map(self):
+        print('\nTesting parallel ODE solves...')
+        if sys.version_info[0] < 3:
+            print('Python 2 detected, skipping parallel tests...')
+            return 0
 
-    reac_man = parallel_reaction_mock()
-    n_nodes = 10
+        reac_man = parallel_reaction_mock()
+        n_nodes = 10
 
-    # Solution should come back in order
-    T_true = np.arange(n_nodes)
+        # Solution should come back in order
+        T_true = np.arange(n_nodes)
 
-    # Serial
-    reac_man.active_nodes = np.arange(n_nodes)
-    T_in = np.zeros(n_nodes)
-    T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=None, n_cores=1)
-    err = np.mean((T_out - T_true)**2)**(0.5)
+        # Serial
+        reac_man.active_nodes = np.arange(n_nodes)
+        T_in = np.zeros(n_nodes)
+        T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=None, n_cores=1)
+        err = np.mean((T_out - T_true)**2)**(0.5)
 
-    # 2 Core
-    pool = mp.Pool(2)
-    T_in = np.zeros(n_nodes)
-    T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=pool, n_cores=2)
-    err += np.mean((T_out - T_true)**2)**(0.5)
+        # 2 Core
+        pool = mp.Pool(2)
+        T_in = np.zeros(n_nodes)
+        T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=pool, n_cores=2)
+        err += np.mean((T_out - T_true)**2)**(0.5)
 
-    # 2 Core node index scramble
-    reac_man.active_nodes = np.array([1, 3, 4, 7, 8, 0, 9, 6, 5, 2])
-    T_in = np.zeros(n_nodes)
-    T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=pool, n_cores=2)
-    err += np.mean((T_out - T_true)**2)**(0.5)
-    pool.close()
+        # 2 Core node index scramble
+        reac_man.active_nodes = np.array([1, 3, 4, 7, 8, 0, 9, 6, 5, 2])
+        T_in = np.zeros(n_nodes)
+        T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=pool, n_cores=2)
+        err += np.mean((T_out - T_true)**2)**(0.5)
+        pool.close()
 
-    # 4 Core node index scramble
-    pool = mp.Pool(4)
-    reac_man.active_nodes = np.array([1, 3, 4, 7, 8, 0, 9, 6, 5, 2])
-    T_in = np.zeros(n_nodes)
-    T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=pool, n_cores=4)
-    err += np.mean((T_out - T_true)**2)**(0.5)
-    pool.close()
+        # 4 Core node index scramble
+        pool = mp.Pool(4)
+        reac_man.active_nodes = np.array([1, 3, 4, 7, 8, 0, 9, 6, 5, 2])
+        T_in = np.zeros(n_nodes)
+        T_out, err_list = reac_man.solve_ode_all_nodes(0.0, T_in, pool=pool, n_cores=4)
+        err += np.mean((T_out - T_true)**2)**(0.5)
+        pool.close()
 
-    if err > 1e-15:
-        print('\tFailed with RMSE {:0.2e}\n'.format(err))
-        return 0
-    else:
-        print('\tPassed\n')
-        return 1
+        self.assertTrue(err < 1e-15, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
 if __name__ == '__main__':
-    parallel_node_map_test()
+    unittest.main()
