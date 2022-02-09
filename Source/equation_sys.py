@@ -23,6 +23,7 @@ class eqn_sys:
         self.n_tot = grid_man.n_tot
         self.dx_arr = grid_man.dx_arr
         self.print_progress = time_opts['Print Progress']
+        self.print_every = time_opts['Print Every N Steps']
 
         # Linear conduction system
         self.LHS_c = np.zeros(self.n_tot)
@@ -31,7 +32,7 @@ class eqn_sys:
         self.RHS = np.zeros(self.n_tot)
         self.cp = np.zeros(self.n_tot)
         self.dp = np.zeros(self.n_tot)
-        self.T_lin = np.zeros(self.n_tot)
+        self.T_sol = np.zeros(self.n_tot)
 
         # Set solve based on solution mode
         if 'Steady' in sol_mode:
@@ -92,7 +93,7 @@ class eqn_sys:
 
         # Solve system
         self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-            self.RHS, self.T_lin, self.cp, self.dp, self.n_tot)
+            self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
 
         print('Total Solve Time: {:0.2f} s'.format(time.time() - start_time))
 
@@ -114,8 +115,17 @@ class eqn_sys:
             # Solve
             start_time = time.time()
             self.transient_solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
+
+            # Update temperature arrays
+            t_int.post_solve(self, self.T_sol)
+
+            # Save data
+            time_data_st = time.time()
+            data_man.save_data(t_int, reac_man)
+            self.time_data += time.time() - time_data_st
+
             step_time.append(time.time() - start_time)
-            if (t_int.n_step%10 == 0) & self.print_progress:
+            if (t_int.n_step%self.print_every == 0) & self.print_progress:
                 print('{:0.1f}%\tVol Avg T: {:0.1f} K'.format(
                     100.*t_int.tot_time/t_int.end_time,
                     np.sum(t_int.T_m1*self.dx_arr)/np.sum(self.dx_arr)))
@@ -144,29 +154,10 @@ class eqn_sys:
         print('\tData Compiling Time: {:0.2f} s'.format(time.time() - time_st))
 
 
-    def transient_linear_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
-        time_st = time.time()
-
-        # Apply linear terms
-        self.apply_linear_operators(mat_man, cond_man, bc_man, t_int, False)
-
-        # Solve
-        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-                              self.RHS, self.T_lin, self.cp, self.dp, self.n_tot)
-
-        # Update time
-        t_int.post_solve(self, self.T_lin)
-
-        # Call data manager
-        data_man.save_data(t_int, reac_man)
-
-        self.time_diffusion += time.time() - time_st
-
-
     def split_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
-        ##############################
-        ### S1 linear solve (dt/2) ###
-        ##############################
+        ##################################
+        ### S1 conduction solve (dt/2) ###
+        ##################################
 
         time_1_st = time.time()
 
@@ -174,10 +165,10 @@ class eqn_sys:
 
         # Solve
         self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-                              self.RHS, self.T_lin, self.cp, self.dp, self.n_tot)
+                              self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
 
         # Update fractional step temperature array
-        t_int.T_star = np.copy(self.T_lin)
+        t_int.T_star = np.copy(self.T_sol)
 
         # Reset linear system
         self.clean()
@@ -200,9 +191,9 @@ class eqn_sys:
             self.time_ode_solve += reac_man.solve_ode_time
             self.time_ode_update += reac_man.update_dofs_time
 
-        ##############################
-        ### S3 linear solve (dt/2) ###
-        ##############################
+        ##################################
+        ### S3 conduction solve (dt/2) ###
+        ##################################
 
         time_3_st = time.time()
 
@@ -210,17 +201,22 @@ class eqn_sys:
 
         # Solve
         self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-            self.RHS, self.T_lin, self.cp, self.dp, self.n_tot)
-
-        # Update temperature arrays
-        t_int.post_solve(self, self.T_lin)
+            self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
 
         self.time_diffusion += time.time() - time_3_st
 
-        # Call data manager
-        time_4_st = time.time()
-        data_man.save_data(t_int, reac_man)
-        self.time_data += time.time() - time_4_st
+
+    def transient_linear_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
+        time_st = time.time()
+
+        # Apply linear terms
+        self.apply_linear_operators(mat_man, cond_man, bc_man, t_int, False)
+
+        # Solve
+        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u,
+                              self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
+
+        self.time_diffusion += time.time() - time_st
 
 
     def apply_linear_operators(self, mat_man, cond_man, bc_man, t_int, split_step):
@@ -242,18 +238,10 @@ class eqn_sys:
     def transient_ode_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
         # Call the reaction manager and advance temperature and density
         # Return only the temperature. The reaction manager will manage densities.
-        time_2_st = time.time()
+        time_st = time.time()
         t_arr = np.array([t_int.tot_time, t_int.tot_time + t_int.dt])
-        T_sol, err_list = reac_man.solve_ode_all_nodes(t_arr, t_int.T_star)
+        self.T_sol, err_list = reac_man.solve_ode_all_nodes(t_arr, t_int.T_star)
 
-        # Update temperature arrays
-        t_int.post_solve(self, T_sol)
-        self.time_ode += time.time() - time_2_st
+        self.time_ode += time.time() - time_st
         self.time_ode_solve += reac_man.solve_ode_time
         self.time_ode_update += reac_man.update_dofs_time
-
-        # Call data manager
-        time_4_st = time.time()
-        data_man.save_data(t_int, reac_man)
-        self.time_data += time.time() - time_4_st
-

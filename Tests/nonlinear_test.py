@@ -17,7 +17,7 @@ import main_fv
 
 
 
-def trans_end_conv(plotting=False):
+def trans_end_conv():
     file_name = os.getcwd() + '/Inputs/trans_end_conv_bdf1.yaml'
 
     # Run model

@@ -82,14 +82,14 @@ class trans_cond_tests(unittest.TestCase):
         T_ans = T_right + theta*(np.mean(time_opts['T Initial']) - T_right)
 
         # Calculate error
-        err = np.sqrt(np.sum((T_ans - eqn_sys.T_lin[half_nodes:])**2)/half_nodes)
+        err = np.sqrt(np.sum((T_ans - eqn_sys.T_sol[half_nodes:])**2)/half_nodes)
         if self.plotting:
             is_split = ''
             if 'split' in file_name:
                 is_split = '_split'
             plt.figure()
             plt.plot(L*(1. + x_star), T_ans, 'o', label='Analytical')
-            plt.plot(grid_man.x_node, eqn_sys.T_lin, '-', label='Numerical')
+            plt.plot(grid_man.x_node, eqn_sys.T_sol, '-', label='Numerical')
             plt.ylim([370, 470])
             plt.xlabel(r'Postion ($m$)')
             plt.ylabel(r'Temperature ($K$)')
@@ -144,7 +144,7 @@ class trans_cond_tests(unittest.TestCase):
         T_ext = model.parser.cap_dict['Boundary']['External']['T']
         C_o = h_ext*bc_man.PA_r/(my_mat.rho*my_mat.cp)
         T_ans = T_ext + (np.mean(time_opts['T Initial']) - T_ext)*np.exp(-1.0*C_o*my_t)
-        err = np.max(np.abs(eqn_sys.T_lin - T_ans))
+        err = np.max(np.abs(eqn_sys.T_sol - T_ans))
         return err
 
 
@@ -170,14 +170,14 @@ class trans_cond_tests(unittest.TestCase):
         T_ans = np.mean(time_opts['T Initial']) + c_one*c_two - c_three*c_four
 
         # Calculate error
-        err = np.sqrt(np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot)
+        err = np.sqrt(np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot)
         if self.plotting:
             is_split = ''
             if 'split' in file_name:
                 is_split = '_split'
             plt.figure()
             plt.plot(grid_man.x_node, T_ans, 'o', label='Analytical')
-            plt.plot(grid_man.x_node, eqn_sys.T_lin, '-', label='Numerical')
+            plt.plot(grid_man.x_node, eqn_sys.T_sol, '-', label='Numerical')
             plt.xlabel(r'Postion ($m$)')
             plt.ylabel(r'Temperature ($K$)')
             plt.legend()
@@ -207,7 +207,7 @@ class trans_cond_tests(unittest.TestCase):
         dT_rate = 2*10000/(0.01*2000*500)
         T_true = 300 + dT_rate*5
 
-        err = abs(T_true - eqn_sys.T_lin[0])
+        err = abs(T_true - eqn_sys.T_sol[0])
         self.assertTrue(err < 1e-13, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 

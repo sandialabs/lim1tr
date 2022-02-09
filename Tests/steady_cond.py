@@ -25,13 +25,13 @@ class steady_cond_tests(unittest.TestCase):
         self.plotting = False
 
 
-    def quick_plot(self, x_node, T_ans, T_lin, MSE, fig_name, raw_diff=False):
+    def quick_plot(self, x_node, T_ans, T_sol, MSE, fig_name, raw_diff=False):
         plt.figure()
         if raw_diff:
-            plt.plot(x_node, T_ans - T_lin, '-', label='Analytical - Numerical')
+            plt.plot(x_node, T_ans - T_sol, '-', label='Analytical - Numerical')
         else:
             plt.plot(x_node, T_ans, 'o', label='Analytical')
-            plt.plot(x_node, T_lin, '-', label='Numerical')
+            plt.plot(x_node, T_sol, '-', label='Numerical')
         plt.xlabel('Postion (m)')
         plt.ylabel('Temperature (K)')
         plt.legend()
@@ -65,9 +65,9 @@ class steady_cond_tests(unittest.TestCase):
         T_arr = np.array([T_1, T_2])
         T_ans = np.interp(grid_man.x_node, x_arr, T_arr)
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'simple_steady_cond')
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'simple_steady_cond')
 
         self.assertTrue(err < 1e-16, '\tFailed with MSE {:0.2e}\n'.format(err))
 
@@ -90,9 +90,9 @@ class steady_cond_tests(unittest.TestCase):
         T_l = T_right + q_flux/100.
         T_ans = T_o - (q_flux/mat_man.k_arr[0])*grid_man.x_node
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'end_conv_steady_cond')
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'end_conv_steady_cond')
 
         self.assertTrue(err < 1e-16, '\tFailed with MSE {:0.2e}\n'.format(err))
 
@@ -120,9 +120,9 @@ class steady_cond_tests(unittest.TestCase):
         x_b = np.array([0, 0.1, 0.2, 0.3])
         T_ans = np.interp(grid_man.x_node, x_b, T_b)
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'end_conv_steady_cond_stack')
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'end_conv_steady_cond_stack')
 
         self.assertTrue(err < 1e-16, '\tFailed with MSE {:0.2e}\n'.format(err))
 
@@ -152,9 +152,9 @@ class steady_cond_tests(unittest.TestCase):
         C_1 = 1./((1. + np.exp(C_m*L_x)) - (mat_man.k_arr[0]*C_m/h_left)*(1. - np.exp(C_m*L_x)))
         T_ans = T_ext + (T_left - T_ext)*C_1*(np.exp(C_m*s_grid) + np.exp(C_m*(L_x - s_grid)))
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'exterior_steady_cond')
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'exterior_steady_cond')
 
         self.assertTrue(err < 2e-5, '\tFailed with MSE {:0.2e}\n'.format(err))
 
@@ -190,9 +190,9 @@ class steady_cond_tests(unittest.TestCase):
         T_ans[mat_nodes:2*mat_nodes] = (grid_man.x_node[mat_nodes:2*mat_nodes] - 0.1)*(T_4 - T_3)/0.1 + T_3
         T_ans[2*mat_nodes:] = (grid_man.x_node[2*mat_nodes:] - 0.2)*(T_6 - T_5)/0.1 + T_5
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'end_conv_steady_contact_stack', raw_diff=False)
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'end_conv_steady_contact_stack', raw_diff=False)
 
         self.assertTrue(err < 1e-1, '\tFailed with MSE {:0.2e}\n'.format(err))
 
@@ -216,9 +216,9 @@ class steady_cond_tests(unittest.TestCase):
         T_l = T_r + flux_left*L_x/mat_man.k_arr[0]
         T_ans = T_l + grid_man.x_node*(T_r - T_l)/L_x
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'left_flux_right_conv', raw_diff=False)
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'left_flux_right_conv', raw_diff=False)
 
         self.assertTrue(err < 1e-12, '\tFailed with MSE {:0.2e}\n'.format(err))
 
@@ -242,9 +242,9 @@ class steady_cond_tests(unittest.TestCase):
         T_r = T_l + flux_right*L_x/mat_man.k_arr[0]
         T_ans = T_l + grid_man.x_node*(T_r - T_l)/L_x
 
-        err = np.sum((T_ans - eqn_sys.T_lin)**2)/grid_man.n_tot
+        err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
         if self.plotting:
-            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_lin, err, 'left_conv_right_flux', raw_diff=False)
+            self.quick_plot(grid_man.x_node, T_ans, eqn_sys.T_sol, err, 'left_conv_right_flux', raw_diff=False)
 
         self.assertTrue(err < 1e-12, '\tFailed with MSE {:0.2e}\n'.format(err))
 
