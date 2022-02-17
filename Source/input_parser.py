@@ -181,8 +181,10 @@ class input_parser:
         if 'Max Steps' not in time_dict.keys():
             time_dict['Max Steps'] = 1e7
         
-        # Set accuracy order if not provided
-        if 'Order' not in time_dict.keys():
+        # Set accuracy order
+        if 'Steady' in time_dict['Solution Mode']:
+            time_dict['Order'] = 0
+        elif 'Order' not in time_dict.keys():
             time_dict['Order'] = 1
 
         # Set output frequency if not provided

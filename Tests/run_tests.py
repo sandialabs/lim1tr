@@ -19,6 +19,7 @@ from reaction_manager_test import reaction_manager_tests
 from sub_reaction_test import sub_reaction_tests
 if sys.version_info[0] >= 3:
     from parallel_reaction_test import parallel_reaction_tests
+from radiation_test import rad_tests
 
 
 if __name__ == '__main__':

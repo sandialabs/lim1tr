@@ -1,0 +1,30 @@
+Materials:
+    A:
+        k: 10
+        rho: 1000
+        cp: 1000
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.1]            # m
+    dx: [0.0001]                 # m
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Radiation
+        eps: 0.8
+        T: 800.
+    Right:
+        Type: Radiation
+        eps: 0.9
+        T: 300.
+
+Time:
+    Run Time: 0.0
+    T Initial: 300
+
+Other:
+    Y Dimension: 0.1
+    Z Dimension: 0.1

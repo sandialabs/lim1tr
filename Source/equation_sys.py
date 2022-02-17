@@ -25,6 +25,11 @@ class eqn_sys:
         self.print_progress = time_opts['Print Progress']
         self.print_every = time_opts['Print Every N Steps']
 
+        # Nonlinear options
+        self.print_nonlinear = False
+        self.max_nonlinear_its = 30
+        self.err_tol = 1e-12
+
         # Linear conduction system
         self.LHS_c = np.zeros(self.n_tot)
         self.LHS_u = np.zeros(self.n_tot)
@@ -34,20 +39,33 @@ class eqn_sys:
         self.dp = np.zeros(self.n_tot)
         self.T_sol = np.zeros(self.n_tot)
 
-        # Set solve based on solution mode
+        # Non-linear contributions
+        self.J_c = np.zeros(self.n_tot)
+        self.J_u = np.zeros(self.n_tot)
+        self.J_l = np.zeros(self.n_tot)
+        self.F = np.zeros(self.n_tot)
+
+        # Timers
+        self.time_conduction = 0
+        self.time_ode = 0
+        self.time_ode_solve = 0
+        self.time_ode_update = 0
+        self.time_data = 0
+
+        # Set main solver based on solution mode
         if 'Steady' in sol_mode:
             print('SOL: Steady.')
-            self.solve = self.steady_linear_solve
+            self.solve = self.steady_solve
         elif 'Transient' in sol_mode:
             self.solve = self.transient_loop
             if 'Split' in sol_mode:
                 print('SOL: Forcing split solve.')
-                self.transient_solve = self.split_solve
+                self.transient_solve = self.split_step_solve
             elif reac_man:
                 self.init_reac(reac_man.rxn_only)
             else:
-                print('SOL: No reaction manager found. Transient linear solve.')
-                self.transient_solve =  self.transient_linear_solve
+                print('SOL: No reaction manager found. Transient conduction solve.')
+                self.transient_solve =  self.whole_step_solve
 
 
     def init_reac(self, rxn_only):
@@ -61,7 +79,7 @@ class eqn_sys:
             print('SOL: Split solve with reactions.')
             if self.n_cores > 1:
                 self.pool = mp.Pool(self.n_cores)
-            self.transient_solve = self.split_solve
+            self.transient_solve = self.split_step_solve
 
 
     def print_sys(self):
@@ -82,42 +100,31 @@ class eqn_sys:
         self.RHS = np.zeros(self.n_tot)
 
 
-    def steady_linear_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
-        start_time = time.time()
-
-        # Apply conduction terms
-        cond_man.apply(self, mat_man)
-
-        # Apply boundary terms
-        bc_man.apply(self, mat_man, 0)
-
-        # Solve system
-        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-            self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
-
-        print('Total Solve Time: {:0.2f} s'.format(time.time() - start_time))
+    def clean_nonlinear(self):
+        self.J_c = np.zeros(self.n_tot)
+        self.J_u = np.zeros(self.n_tot)
+        self.J_l = np.zeros(self.n_tot)
+        self.F = np.zeros(self.n_tot)
 
 
     def transient_loop(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
         # Check CFL
         t_int.check_cfl(mat_man)
 
+        # Set conduction solver (linear/non-linear)
+        self.set_conduction_solve(bc_man)
+
         # Save timing for each step
         step_time = []
-        self.time_diffusion = 0
-        self.time_ode = 0
-        self.time_ode_solve = 0
-        self.time_ode_update = 0
-        self.time_data = 0
 
         while ((t_int.end_time - t_int.tot_time) > 1e-10) and (t_int.n_step < t_int.max_steps):
 
             # Solve
             start_time = time.time()
-            self.transient_solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
+            self.transient_solve(mat_man, cond_man, bc_man, reac_man, t_int)
 
             # Update temperature arrays
-            t_int.post_solve(self, self.T_sol)
+            t_int.post_solve(self.T_sol)
 
             # Save data
             time_data_st = time.time()
@@ -137,7 +144,7 @@ class eqn_sys:
             self.pool.close()
 
         print('Total Solve Time: {:0.2f} s'.format(sum(step_time)))
-        print('\tDiffusion Solve Time: {:0.2f} s'.format(self.time_diffusion))
+        print('\tConduction Solve Time: {:0.2f} s'.format(self.time_conduction))
         print('\tReaction Solve Time: {:0.2f} s'.format(self.time_ode))
         print('\t\tODE Solve Time: {:0.2f} s'.format(self.time_ode_solve))
         print('\t\tODE Update Time: {:0.2f} s'.format(self.time_ode_update))
@@ -154,26 +161,15 @@ class eqn_sys:
         print('\tData Compiling Time: {:0.2f} s'.format(time.time() - time_st))
 
 
-    def split_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
+    def split_step_solve(self, mat_man, cond_man, bc_man, reac_man, t_int):
         ##################################
         ### S1 conduction solve (dt/2) ###
         ##################################
 
-        time_1_st = time.time()
-
-        self.apply_linear_operators(mat_man, cond_man, bc_man, t_int, True)
-
-        # Solve
-        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-                              self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
+        self.conduction_solve(mat_man, cond_man, bc_man, t_int, True)
 
         # Update fractional step temperature array
         t_int.T_star = np.copy(self.T_sol)
-
-        # Reset linear system
-        self.clean()
-
-        self.time_diffusion += time.time() - time_1_st
 
         #########################
         ### S2 ODE solve (dt) ###
@@ -185,7 +181,7 @@ class eqn_sys:
             time_2_st = time.time()
             t_arr = np.array([t_int.tot_time, t_int.tot_time + t_int.dt])
             t_int.T_star, err_list = reac_man.solve_ode_all_nodes(
-                t_arr, t_int.T_star, pool=self.pool, n_cores=self.n_cores)
+                t_arr, self.T_sol, pool=self.pool, n_cores=self.n_cores)
 
             self.time_ode += time.time() - time_2_st
             self.time_ode_solve += reac_man.solve_ode_time
@@ -195,31 +191,92 @@ class eqn_sys:
         ### S3 conduction solve (dt/2) ###
         ##################################
 
-        time_3_st = time.time()
-
-        self.apply_linear_operators(mat_man, cond_man, bc_man, t_int, True)
-
-        # Solve
-        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, 
-            self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
-
-        self.time_diffusion += time.time() - time_3_st
+        self.conduction_solve(mat_man, cond_man, bc_man, t_int, True)
 
 
-    def transient_linear_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
+    def whole_step_solve(self, mat_man, cond_man, bc_man, reac_man, t_int):
+        self.conduction_solve(mat_man, cond_man, bc_man, t_int, False)
+
+
+    def steady_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
+        self.set_conduction_solve(bc_man)
+        self.conduction_solve(mat_man, cond_man, bc_man, t_int, False)
+
+
+    def set_conduction_solve(self, bc_man):
+        # Set conduction solver
+        if bc_man.nonlinear_flag:
+            self.conduction_solve = self.nonlinear_conduction_solve
+        else:
+            self.conduction_solve = self.linear_conduction_solve
+
+
+    def linear_conduction_solve(self, mat_man, cond_man, bc_man, t_int, split_step):
         time_st = time.time()
 
         # Apply linear terms
-        self.apply_linear_operators(mat_man, cond_man, bc_man, t_int, False)
+        self.apply_conduction_operators(mat_man, cond_man, bc_man, t_int, split_step)
 
         # Solve
-        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u,
-                              self.RHS, self.T_sol, self.cp, self.dp, self.n_tot)
+        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, self.RHS,
+                              self.T_sol, self.cp, self.dp, self.n_tot)
 
-        self.time_diffusion += time.time() - time_st
+        # Reset linear system
+        self.clean()
+
+        self.time_conduction += time.time() - time_st
 
 
-    def apply_linear_operators(self, mat_man, cond_man, bc_man, t_int, split_step):
+    def nonlinear_conduction_solve(self, mat_man, cond_man, bc_man, t_int, split_step):
+        time_st = time.time()
+        dT = np.zeros(self.n_tot)
+        self.T_sol = np.copy(t_int.T_star)
+
+        # Apply terms that don't depend on the new temperature
+        self.apply_conduction_operators(mat_man, cond_man, bc_man, t_int, split_step)
+
+        err = self.err_tol*2
+        i = 0
+        if self.print_nonlinear:
+            print('Nonlinear iterations:')
+        while (err > self.err_tol) & (i < self.max_nonlinear_its):
+            # Compute linear contributions to F
+            self.F = self.LHS_c*self.T_sol - self.RHS
+            self.F[:-1] += self.LHS_u[:-1]*self.T_sol[1:]
+            self.F[1:] += self.LHS_l[1:]*self.T_sol[:-1]
+
+            # Build system for Newton step
+            bc_man.apply_nonlinear(self, mat_man, self.T_sol)
+            self.J_c += self.LHS_c
+            self.J_u += self.LHS_u
+            self.J_l += self.LHS_l
+            self.F *= -1
+
+            # Solve
+            self.my_linear_solver(self.J_l, self.J_c, self.J_u, self.F,
+                                  dT, self.cp, self.dp, self.n_tot)
+
+            # Calculate error
+            err = np.max(np.abs(dT))
+            if self.print_nonlinear:
+                print('\t', i, err)
+
+            # Update
+            self.T_sol += dT
+            i += 1
+
+            # Reset system
+            self.clean_nonlinear()
+
+        if i >= self.max_nonlinear_its:
+            print('\nWarning!!! Maximum number of nonlinear iterations reached!\n')
+
+        self.clean()
+
+        self.time_conduction += time.time() - time_st
+
+
+    def apply_conduction_operators(self, mat_man, cond_man, bc_man, t_int, split_step):
         # Apply conduction terms
         cond_man.apply(self, mat_man)
 
@@ -232,10 +289,11 @@ class eqn_sys:
         elif(t_int.order == 2):
             cond_man.apply_operator(self, mat_man, t_int.T_star)
             bc_man.apply_operator(self, mat_man, t_int.T_star, t_int.tot_time)
+            bc_man.apply_operator_nonlinear(self, mat_man, t_int.T_star)
             t_int.apply_CN(self, mat_man, split_step)
 
 
-    def transient_ode_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
+    def transient_ode_solve(self, mat_man, cond_man, bc_man, reac_man, t_int):
         # Call the reaction manager and advance temperature and density
         # Return only the temperature. The reaction manager will manage densities.
         time_st = time.time()

@@ -30,30 +30,31 @@ class bc_manager:
         left, right, and external BCs
         '''
         self.boundaries = []
+        self.nonlinear_boundaries = []
         self.timed_boundaries = []
+        self.nonlinear_flag = False
 
         # End BCs (left and right)
         for my_end in ['Left', 'Right']:
-            my_params = bnd_dict[my_end]
-            my_params['Type'] = my_params['Type'].strip().lower()
-            if my_params['Type'] == 'adiabatic':
+            end_params = bnd_dict[my_end]
+            end_params['Type'] = end_params['Type'].strip().lower()
+            if end_params['Type'] == 'adiabatic':
                 end_bc = boundary_types.end_bc(self.dx_arr, my_end)
-            elif my_params['Type'] == 'convection':
+            elif end_params['Type'] == 'convection':
                 end_bc = boundary_types.end_convection(self.dx_arr, my_end)
-                end_bc.set_params(my_params['h'], my_params['T'])
-            elif my_params['Type'] == 'heat flux':
+                end_bc.set_params(end_params['h'], end_params['T'])
+            elif end_params['Type'] == 'heat flux':
                 end_bc = boundary_types.end_flux(self.dx_arr, my_end)
-                end_bc.set_params(my_params['Flux'])
+                end_bc.set_params(end_params['Flux'])
+            elif end_params['Type'] == 'radiation':
+                end_bc = boundary_types.end_radiation(self.dx_arr, my_end)
+                end_bc.set_params(end_params['eps'], end_params['T'])
+                self.nonlinear_flag = True
             else:
-                err_str = 'Boundary type {} for {} boundary not found.'.format(my_params['Type'], my_end)
+                err_str = 'Boundary type {} for {} boundary not found.'.format(end_params['Type'], my_end)
                 raise ValueError(err_str)
 
-            if 'Deactivation Time' in my_params.keys():
-                off_time = my_params['Deactivation Time']
-                timed_bc = boundary_types.timed_boundary(end_bc, off_time)
-                self.timed_boundaries.append(timed_bc)
-            else:
-                self.boundaries.append(end_bc)
+            self.register_bc(end_bc, end_params)
 
         # External BC
         ext_params = bnd_dict['External']
@@ -63,15 +64,28 @@ class bc_manager:
         elif ext_params['Type'] == 'convection':
             ext_bc = boundary_types.ext_convection(self.dx_arr, self.PA_r)
             ext_bc.set_params(ext_params['h'], ext_params['T'])
+        elif ext_params['Type'] == 'radiation':
+            ext_bc = boundary_types.ext_radiation(self.dx_arr, self.PA_r)
+            ext_bc.set_params(ext_params['eps'], ext_params['T'])
+            self.nonlinear_flag = True
         else:
             err_str = 'Boundary type {} for external boundary not found.'.format(ext_params['Type'])
             raise ValueError(err_str)
-        if 'Deactivation Time' in ext_params.keys():
-            off_time = ext_params['Deactivation Time']
-            timed_bc = boundary_types.timed_boundary(ext_bc, off_time)
+        self.register_bc(ext_bc, ext_params)
+
+
+    def register_bc(self, bc, params):
+        if 'Deactivation Time' in params.keys():
+            if 'radiation' in bc.name:
+                err_str = 'Timed Radiation BC is currently not supported.'
+                raise ValueError(err_str)
+            off_time = params['Deactivation Time']
+            timed_bc = boundary_types.timed_boundary(bc, off_time)
             self.timed_boundaries.append(timed_bc)
+        elif 'radiation' in bc.name:
+            self.nonlinear_boundaries.append(bc)
         else:
-            self.boundaries.append(ext_bc)
+            self.boundaries.append(bc)
 
 
     def apply(self, eqn_sys, mat_man, tot_time):
@@ -87,4 +101,14 @@ class bc_manager:
             timed_bc.set_time(tot_time)
             timed_bc.apply_operator(eqn_sys, mat_man, T)
         for bc in self.boundaries:
+            bc.apply_operator(eqn_sys, mat_man, T)
+
+
+    def apply_nonlinear(self, eqn_sys, mat_man, T):
+        for bc in self.nonlinear_boundaries:
+            bc.apply(eqn_sys, mat_man, T)
+
+
+    def apply_operator_nonlinear(self, eqn_sys, mat_man, T):
+        for bc in self.nonlinear_boundaries:
             bc.apply_operator(eqn_sys, mat_man, T)

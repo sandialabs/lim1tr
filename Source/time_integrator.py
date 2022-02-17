@@ -62,7 +62,7 @@ class time_int:
         eqn_sys.RHS += mat_man.m_arr*self.T_star*time_mod*self.idt
 
 
-    def post_solve(self, eqn_sys, T_sol):
+    def post_solve(self, T_sol):
         # Update time step
         self.dt_list.append(self.dt)
         self.dt_m1 = self.dt*1.
@@ -77,9 +77,6 @@ class time_int:
         self.T_m2 = np.copy(self.T_m1)
         self.T_m1 = np.copy(T_sol)
         self.T_star = np.copy(T_sol)
-
-        # Reset linear system
-        eqn_sys.clean()
 
 
     def check_cfl(self, mat_man):
