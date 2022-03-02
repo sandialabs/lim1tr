@@ -263,6 +263,7 @@ class eqn_sys:
 
             # Update
             self.T_sol += dT
+            bc_man.update(self.T_sol, t_int.dt, split_step)
             i += 1
 
             # Reset system
@@ -271,6 +272,7 @@ class eqn_sys:
         if i >= self.max_nonlinear_its:
             print('\nWarning!!! Maximum number of nonlinear iterations reached!\n')
 
+        bc_man.update_post_step()
         self.clean()
 
         self.time_conduction += time.time() - time_st

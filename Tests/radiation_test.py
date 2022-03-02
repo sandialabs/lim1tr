@@ -15,6 +15,7 @@ import scipy as sp
 import time, sys, os
 sys.path.append('../')
 import main_fv
+import boundary_types
 
 import matplotlib as mpl
 mpl.use( 'Agg' )
@@ -172,6 +173,22 @@ class rad_tests(unittest.TestCase):
             plt.close()
 
         return err
+
+
+    def test_arc_bc(self):
+        print('\nTesting arc radiation bc...')
+        bc = boundary_types.end_radiation_arc(np.ones(1), 'Right')
+        bc.set_params(0.5, 300, 1)
+        dt = 5.
+        T_node = np.array([[300], [300], [301], [307], [308]])
+        T_arc = np.zeros(T_node.shape[0])
+        for n in range(T_node.shape[0]):
+            bc.update_params(T_node[n,:], dt)
+            bc.update_post_step()
+            T_arc[n] = bc.T_ext
+        T_arc_true = np.array([300., 300., 301., 306., 308.])
+        err = np.sum(np.abs(T_arc-T_arc_true))
+        self.assertTrue(err < 1e-15, '\tFailed total error {:0.2e}\n'.format(err))
 
 
 if __name__ == '__main__':

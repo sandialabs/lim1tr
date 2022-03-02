@@ -10,6 +10,8 @@
 
 from __future__ import division
 import numpy as np
+import os
+import pickle as p
 import boundary_types
 
 
@@ -23,16 +25,17 @@ class bc_manager:
         self.dx_arr = grid_man.dx_arr
         self.n_tot = grid_man.n_tot
         self.PA_r = grid_man.PA_r  # Perimeter to cross-sectional area ratio
+        self.boundaries = []
+        self.nonlinear_boundaries = []
+        self.timed_boundaries = []
+        self.arc_boundaries = []
+        self.nonlinear_flag = False
 
 
     def setup(self, bnd_dict):
         '''Sets up parameters and apply functions for
         left, right, and external BCs
         '''
-        self.boundaries = []
-        self.nonlinear_boundaries = []
-        self.timed_boundaries = []
-        self.nonlinear_flag = False
 
         # End BCs (left and right)
         for my_end in ['Left', 'Right']:
@@ -49,6 +52,10 @@ class bc_manager:
             elif end_params['Type'] == 'radiation':
                 end_bc = boundary_types.end_radiation(self.dx_arr, my_end)
                 end_bc.set_params(end_params['eps'], end_params['T'])
+                self.nonlinear_flag = True
+            elif end_params['Type'] == 'radiation arc':
+                end_bc = boundary_types.end_radiation_arc(self.dx_arr, my_end)
+                end_bc.set_params(end_params['eps'], end_params['T'], end_params['Max Rate'])
                 self.nonlinear_flag = True
             else:
                 err_str = 'Boundary type {} for {} boundary not found.'.format(end_params['Type'], my_end)
@@ -87,6 +94,9 @@ class bc_manager:
         else:
             self.boundaries.append(bc)
 
+        if '_arc' in bc.name:
+            self.arc_boundaries.append(bc)
+
 
     def apply(self, eqn_sys, mat_man, tot_time):
         for timed_bc in self.timed_boundaries:
@@ -112,3 +122,16 @@ class bc_manager:
     def apply_operator_nonlinear(self, eqn_sys, mat_man, T):
         for bc in self.nonlinear_boundaries:
             bc.apply_operator(eqn_sys, mat_man, T)
+
+
+    def update(self, T, dt, split_step):
+        dt_mod = 1.
+        if split_step:
+            dt_mod = 0.5
+        for bc in self.arc_boundaries:
+            bc.update_params(T, dt*dt_mod)
+
+
+    def update_post_step(self):
+        for bc in self.arc_boundaries:
+            bc.update_post_step()

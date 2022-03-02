@@ -102,6 +102,28 @@ class end_radiation(end_bc):
         eqn_sys.RHS[self.n_ind] -= self.sigma_eps*(T[self.n_ind]**4 - self.T_ext_4)
 
 
+class end_radiation_arc(end_radiation):
+    def set_params(self, eps, T, dTdt_max):
+        super().set_params(eps, T)
+        self.dTdt_max = dTdt_max
+        self.T_old = 1.*T
+        self.T_ext = 1.*T
+        self.name += '_arc'
+
+
+    def update_params(self, T, dt):
+        dTdt = (T[self.n_ind] - self.T_old)/dt
+        if dTdt > self.dTdt_max:
+            self.T_ext = dt*self.dTdt_max + self.T_old
+        else:
+            self.T_ext = 1.*T[self.n_ind]
+        self.T_ext_4 = self.T_ext**4
+
+
+    def update_post_step(self):
+        self.T_old = 1.*self.T_ext
+
+
 class ext_bc(bc_base):
     def __init__(self, dx_arr, PA_r):
         self.name = 'ext'
