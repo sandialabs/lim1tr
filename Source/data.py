@@ -26,24 +26,17 @@ class data_manager:
         self.fold_name = fold_name
         self.file_name = file_name
         self.data_dict = {}
-        self.data_dict['Time'] = [0.0]
         self.data_dict['Grid'] = grid_man.x_node
+        self.data_dict['Layer Map'] = grid_man.layer_map
+        self.skip_keys = ['Grid', 'Layer Map']
         self.rate_dict = {}
         self.n_tot = grid_man.n_tot
         self.mint_list = grid_man.mint_list
-        self.data_dict['Temperature'] = np.array(np.zeros(self.n_tot) + time_opts['T Initial'], ndmin=2)
-        self.data_dict['Interface Temperature'] = self.get_interface_temperatures(self.data_dict['Temperature'])
         self.reac_present = False
         if reac_man:
-            self.rate_dict['Time'] = [0.0]
             self.reac_present = True
             self.species_name_list = reac_man.species_name_list
-            for spec_name in self.species_name_list:
-                self.data_dict[spec_name] = np.array(reac_man.species_density[spec_name], ndmin=2)
-                self.rate_dict[spec_name] = np.array(reac_man.species_rate[spec_name], ndmin=2)
-            self.rate_dict['HRR'] = np.array(reac_man.heat_release_rate, ndmin=2)
-            self.rate_dict['Reaction Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
-        self.data_len = 1
+        self.make_temporal_arrays(time_opts['T Initial'], 0.0, reac_man)
         num_outputs = self.n_tot + self.data_dict['Interface Temperature'].shape[1]
         if reac_man:
             num_outputs += 2*self.n_tot*(len(self.species_name_list) + 1)
@@ -53,15 +46,34 @@ class data_manager:
         self.output_frequency = time_opts['Output Frequency']
 
 
+    def make_temporal_arrays(self, my_T, tot_time, reac_man):
+        self.data_dict['Time'] = np.array([tot_time])
+        self.data_dict['Temperature'] = np.array(my_T, ndmin=2)
+        self.data_dict['Interface Temperature'] = self.get_interface_temperatures(self.data_dict['Temperature'])
+        if reac_man:
+            self.rate_dict['Time'] = np.array([tot_time])
+            for spec_name in self.species_name_list:
+                self.data_dict[spec_name] = np.array(reac_man.species_density[spec_name], ndmin=2)
+                self.rate_dict[spec_name] = np.array(reac_man.species_rate[spec_name], ndmin=2)
+            self.rate_dict['HRR'] = np.array(reac_man.heat_release_rate, ndmin=2)
+            self.rate_dict['Reaction Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
+        self.data_len = 1
+
+
+    def concat_array(self, my_dict, key, new_array, ndmin=2):
+        new_array = np.array(new_array, ndmin=ndmin)
+        my_dict[key] = np.concatenate((my_dict[key], new_array), axis=0)
+
+
     def get_interface_temperatures(self, T_arr):
-        T_interface = np.array(np.zeros(len(self.mint_list) - 1), ndmin=2)
+        T_interface = np.zeros(len(self.mint_list) - 1)
         for m in range(len(self.mint_list) - 1):
             tmp_ind = self.mint_list[m]
-            T_interface[0,m] = 0.5*(T_arr[0,tmp_ind] + T_arr[0,tmp_ind + 1])
-        return T_interface
+            T_interface[m] = 0.5*(T_arr[0, tmp_ind] + T_arr[0, tmp_ind + 1])
+        return np.array(T_interface, ndmin=2)
 
 
-    def save_data(self, t_int, reac_man, process_rates=True):
+    def save_data(self, t_int, reac_man):
         if ((t_int.n_step - 1)%self.output_frequency != 0):
             return 0
 
@@ -71,38 +83,25 @@ class data_manager:
             self.out_num += 1
 
             # Reset data dictionary with most recent step
-            self.data_dict['Time'] = [t_int.tot_time]
-            self.data_dict['Temperature'] = np.array(t_int.T_m1, ndmin=2)
-            self.data_dict['Interface Temperature'] = self.get_interface_temperatures(self.data_dict['Temperature'])
-            if reac_man:
-                self.rate_dict['Time'] = [t_int.tot_time]
-                for spec_name in self.species_name_list:
-                    self.data_dict[spec_name] = np.array(reac_man.species_density[spec_name], ndmin=2)
-                    self.rate_dict[spec_name] = np.array(reac_man.species_rate[spec_name], ndmin=2)
-                self.rate_dict['HRR'] = np.array(reac_man.heat_release_rate, ndmin=2)
-                self.rate_dict['Reaction Temperature Rate'] = np.array(reac_man.temperature_rate, ndmin=2)
-            self.data_len = 1
+            self.make_temporal_arrays(t_int.T_m1, t_int.tot_time, reac_man)
         else:
             # Append most recent step
-            self.data_dict['Time'].append(t_int.tot_time)
-            self.data_dict['Temperature'] = np.concatenate((self.data_dict['Temperature'], np.array(t_int.T_m1, ndmin=2)), axis=0)
+            self.concat_array(self.data_dict, 'Time', [t_int.tot_time], ndmin=1)
+            self.concat_array(self.data_dict, 'Temperature', t_int.T_m1)
             interface_temp = self.get_interface_temperatures(np.array(t_int.T_m1, ndmin=2))
-            self.data_dict['Interface Temperature'] = np.concatenate((self.data_dict['Interface Temperature'], interface_temp), axis=0)
+            self.concat_array(self.data_dict, 'Interface Temperature', interface_temp)
             if reac_man:
-                self.rate_dict['Time'].append(t_int.tot_time)
+                self.concat_array(self.rate_dict, 'Time', [t_int.tot_time], ndmin=1)
                 for spec_name in self.species_name_list:
-                    self.data_dict[spec_name] = np.concatenate((self.data_dict[spec_name], np.array(reac_man.species_density[spec_name], ndmin=2)), axis=0)
-                    self.rate_dict[spec_name] = np.concatenate((self.rate_dict[spec_name], np.array(reac_man.species_rate[spec_name], ndmin=2)), axis=0)
-                self.rate_dict['HRR'] = np.concatenate((self.rate_dict['HRR'], np.array(reac_man.heat_release_rate, ndmin=2)), axis=0)
-                self.rate_dict['Reaction Temperature Rate'] = np.concatenate((self.rate_dict['Reaction Temperature Rate'], np.array(reac_man.temperature_rate, ndmin=2)), axis=0)
+                    self.concat_array(self.data_dict, spec_name, reac_man.species_density[spec_name])
+                    self.concat_array(self.rate_dict, spec_name, reac_man.species_rate[spec_name])
+                self.concat_array(self.rate_dict, 'HRR', reac_man.heat_release_rate)
+                self.concat_array(self.rate_dict, 'Reaction Temperature Rate', reac_man.temperature_rate)
             self.data_len += 1
 
 
     def write_data(self):
         # Write data to a pickle
-        self.data_dict['Time'] = np.asarray(self.data_dict['Time'])
-        if self.reac_present:
-            self.rate_dict['Time'] = np.asarray(self.rate_dict['Time'])
         tmp_name = self.file_name + '_output_' + str(self.out_num).rjust(4, '0') + '.p'
         output_file = os.path.join(self.fold_name, tmp_name)
         with open(output_file, 'wb') as f:
@@ -122,16 +121,13 @@ class data_manager:
             output_file = os.path.join(self.fold_name, tmp_name)
             with open(output_file , 'rb') as f:
                 tmp_cap, tmp_data, tmp_rate = p.load(f)
-            my_data['Time'] = np.concatenate((my_data['Time'], tmp_data['Time']), axis=0)
-            my_data['Temperature'] = np.concatenate((my_data['Temperature'], tmp_data['Temperature']), axis=0)
-            my_data['Interface Temperature'] = np.concatenate((my_data['Interface Temperature'], tmp_data['Interface Temperature']), axis=0)
+            for key in my_data.keys():
+                if key in self.skip_keys:
+                    continue
+                my_data[key] = np.concatenate((my_data[key], tmp_data[key]), axis=0)
             if self.reac_present:
-                my_rate['Time'] = np.concatenate((my_rate['Time'], tmp_rate['Time']), axis=0)
-                for spec_name in self.species_name_list:
-                    my_data[spec_name] = np.concatenate((my_data[spec_name], tmp_data[spec_name]), axis=0)
-                    my_rate[spec_name] = np.concatenate((my_rate[spec_name], tmp_rate[spec_name]), axis=0)
-                my_rate['HRR'] = np.concatenate((my_rate['HRR'], tmp_rate['HRR']), axis=0)
-                my_rate['Reaction Temperature Rate'] = np.concatenate((my_rate['Reaction Temperature Rate'], tmp_rate['Reaction Temperature Rate']), axis=0)
+                for key in my_rate.keys():
+                    my_rate[key] = np.concatenate((my_rate[key], tmp_rate[key]), axis=0)
 
         # Write data to a pickle
         tmp_name = self.file_name + '_output.p'
