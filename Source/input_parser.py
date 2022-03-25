@@ -103,7 +103,7 @@ class input_parser:
             reac_man = False
 
         # Data manager
-        data_man = data.data_manager(grid_man, reac_man, time_opts, self.cap_dict, self.fold_name, self.file_name)
+        data_man = data.data_manager(grid_man, bc_man, reac_man, time_opts, self.cap_dict, self.fold_name, self.file_name)
 
         return mat_man, grid_man, bc_man, reac_man, data_man, time_opts
 

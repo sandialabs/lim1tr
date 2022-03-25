@@ -23,13 +23,14 @@ class bc_base:
 
 class end_bc(bc_base):
     def __init__(self, dx_arr, my_end):
-        self.name = 'end'
+        my_end = my_end.lower()
+        self.name = '{}_end'.format(my_end)
         self.dx_arr = dx_arr
         self.n_tot = dx_arr.shape[0]
-        if my_end == 'Left':
+        if my_end == 'left':
             self.n_ind = 0
             self.k_ind = 0
-        elif my_end == 'Right':
+        elif my_end == 'right':
             self.n_ind = self.n_tot - 1
             self.k_ind = self.n_tot - 2
         else:

@@ -135,3 +135,11 @@ class bc_manager:
     def update_post_step(self):
         for bc in self.arc_boundaries:
             bc.update_post_step()
+
+
+    def get_bc_output(self):
+        bc_out = {}
+        for bc in self.arc_boundaries:
+            key = '{}_T'.format(bc.name)
+            bc_out[key] = bc.T_old
+        return bc_out

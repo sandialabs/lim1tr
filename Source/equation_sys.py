@@ -128,7 +128,7 @@ class eqn_sys:
 
             # Save data
             time_data_st = time.time()
-            data_man.save_data(t_int, reac_man)
+            data_man.save_data(t_int, bc_man, reac_man)
             self.time_data += time.time() - time_data_st
 
             step_time.append(time.time() - start_time)
