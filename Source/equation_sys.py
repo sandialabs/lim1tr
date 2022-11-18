@@ -19,7 +19,14 @@ class eqn_sys:
     def __init__(self, grid_man, reac_man, time_opts):
         sol_mode = time_opts['Solution Mode']
         self.n_cores = time_opts['Number of Cores']
+        if 'Parallel Mode' not in time_opts.keys():
+            self.mp_mode = 'Pool'
+        else:
+            self.mp_mode = time_opts['Parallel Mode']
         self.pool = None
+        self.processes = None
+        self.work_queue = None
+        self.result_queue = None
         self.n_tot = grid_man.n_tot
         self.dx_arr = grid_man.dx_arr
         self.print_progress = time_opts['Print Progress']
@@ -62,14 +69,14 @@ class eqn_sys:
                 print('SOL: Forcing split solve.')
                 self.transient_solve = self.split_step_solve
             elif reac_man:
-                self.init_reac(reac_man.rxn_only)
+                self.init_reac(reac_man)
             else:
                 print('SOL: No reaction manager found. Transient conduction solve.')
                 self.transient_solve =  self.whole_step_solve
 
 
-    def init_reac(self, rxn_only):
-        if rxn_only:
+    def init_reac(self, reac_man):
+        if reac_man.rxn_only:
             print('SOL: Reaction only.')
             self.transient_solve = self.transient_ode_solve
             if self.n_tot > 1:
@@ -78,7 +85,18 @@ class eqn_sys:
         else:
             print('SOL: Split solve with reactions.')
             if self.n_cores > 1:
-                self.pool = mp.Pool(self.n_cores)
+                if 'Pool' in self.mp_mode:
+                    print('Using a Pool of {}'.format(self.n_cores))
+                    self.pool = mp.Pool(self.n_cores)
+                elif 'Queue' in self.mp_mode:
+                    print('Using a Queue of {}'.format(self.n_cores))
+                    self.work_queue = mp.JoinableQueue()
+                    self.result_queue = mp.Queue()
+                    self.processes = []
+                    for proc in range(self.n_cores):
+                        p = mp.Process(target=reac_man.solve_nodes_consumer, args=(self.work_queue, self.result_queue))
+                        self.processes.append(p)
+                        p.start()
             self.transient_solve = self.split_step_solve
 
 
@@ -143,6 +161,16 @@ class eqn_sys:
         if self.pool is not None:
             self.pool.close()
 
+        if self.processes is not None:
+            for i in range(self.n_cores):
+                self.work_queue.put(None)
+            self.work_queue.join()
+            active = mp.active_children()
+            for p in active:
+                p.terminate()
+            for p in active:
+                p.join()
+
         print('Total Solve Time: {:0.2f} s'.format(sum(step_time)))
         print('\tConduction Solve Time: {:0.2f} s'.format(self.time_conduction))
         print('\tReaction Solve Time: {:0.2f} s'.format(self.time_ode))
@@ -181,7 +209,8 @@ class eqn_sys:
             time_2_st = time.time()
             t_arr = np.array([t_int.tot_time, t_int.tot_time + t_int.dt])
             t_int.T_star, err_list = reac_man.solve_ode_all_nodes(
-                t_arr, self.T_sol, pool=self.pool, n_cores=self.n_cores)
+                t_arr, self.T_sol, processes=self.processes, work_queue=self.work_queue,
+                result_queue=self.result_queue, pool=self.pool, n_cores=self.n_cores)
 
             self.time_ode += time.time() - time_2_st
             self.time_ode_solve += reac_man.solve_ode_time
