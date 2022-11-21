@@ -43,6 +43,9 @@ class bc_manager:
             end_params['Type'] = end_params['Type'].strip().lower()
             if end_params['Type'] == 'adiabatic':
                 end_bc = boundary_types.end_bc(self.dx_arr, my_end)
+            elif end_params['Type'] == 'dirichlet':
+                end_bc = boundary_types.end_dirichlet(self.dx_arr, my_end)
+                end_bc.set_params(end_params['T'])
             elif end_params['Type'] == 'convection':
                 end_bc = boundary_types.end_convection(self.dx_arr, my_end)
                 end_bc.set_params(end_params['h'], end_params['T'])

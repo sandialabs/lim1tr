@@ -13,12 +13,10 @@ Boundary:
     External:
         Type: Adiabatic
     Left:
-        Type: Convection
-        h: 10000.
+        Type: Dirichlet
         T: 500.
     Right:
-        Type: Convection
-        h: 10000.
+        Type: Dirichlet
         T: 300.
 
 Time:

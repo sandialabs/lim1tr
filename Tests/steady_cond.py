@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 class steady_cond_tests(unittest.TestCase):
     def setUp(self):
-        self.plotting = False
+        self.plotting = True
 
 
     def quick_plot(self, x_node, T_ans, T_sol, MSE, fig_name, raw_diff=False):
@@ -50,19 +50,14 @@ class steady_cond_tests(unittest.TestCase):
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
         # Pull constants out of parser
-        h_left = model.parser.cap_dict['Boundary']['Left']['h']
-        h_right = model.parser.cap_dict['Boundary']['Right']['h']
         T_left = model.parser.cap_dict['Boundary']['Left']['T']
         T_right = model.parser.cap_dict['Boundary']['Right']['T']
 
         # Answer should be a line
         Lx = np.sum(grid_man.dx_arr)
-        r_tot = (1./h_left) + (Lx/mat_man.k_arr[0]) + (1./h_right)
-        q_c = (T_left - T_right)/r_tot
-        T_1 = T_left - q_c/h_left
-        T_2 = T_right + q_c/h_right
+
         x_arr = np.array([0, Lx])
-        T_arr = np.array([T_1, T_2])
+        T_arr = np.array([T_left, T_right])
         T_ans = np.interp(grid_man.x_node, x_arr, T_arr)
 
         err = np.sum((T_ans - eqn_sys.T_sol)**2)/grid_man.n_tot
