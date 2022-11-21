@@ -161,26 +161,24 @@ class ext_convection(ext_bc):
     def apply(self, eqn_sys, mat_man):
         '''Adds external convection terms
         '''
-        for i in range(self.n_tot):
-            h_const = self.h_ext*self.dx_arr[i]*self.PA_r
+        h_const = self.h_ext*self.dx_arr*self.PA_r
 
-            # LHS
-            eqn_sys.LHS_c[i] += h_const
+        # LHS
+        eqn_sys.LHS_c += h_const
 
-            # RHS
-            eqn_sys.RHS[i] += h_const*self.T_ext
+        # RHS
+        eqn_sys.RHS += h_const*self.T_ext
 
 
     def apply_operator(self, eqn_sys, mat_man, T):
         '''Adds the action of the external convection terms
         on the previous time step to the RHS
         '''
-        for i in range(self.n_tot):
-            # convection constant
-            h_const = self.h_ext*self.dx_arr[i]*self.PA_r
+        # convection constant
+        h_const = self.h_ext*self.dx_arr*self.PA_r
 
-            # RHS
-            eqn_sys.RHS[i] += h_const*(self.T_ext - T[i])
+        # RHS
+        eqn_sys.RHS += h_const*(self.T_ext - T)
 
 
 class ext_radiation(ext_bc):
@@ -194,9 +192,8 @@ class ext_radiation(ext_bc):
         '''Adds end convection BC terms to system.
         '''
         dxPA = self.dx_arr*self.PA_r
-        for i in range(self.n_tot):
-            eqn_sys.J_c[i] += dxPA[i]*self.sigma_eps*4*T[i]**3
-            eqn_sys.F[i] += dxPA[i]*self.sigma_eps*(T[i]**4 - self.T_ext_4)
+        eqn_sys.J_c += dxPA*self.sigma_eps*4*T**3
+        eqn_sys.F += dxPA*self.sigma_eps*(T**4 - self.T_ext_4)
 
 
     def apply_operator(self, eqn_sys, mat_man, T):
@@ -204,8 +201,7 @@ class ext_radiation(ext_bc):
         terms on the previous time step to the RHS
         '''
         dxPA = self.dx_arr*self.PA_r
-        for i in range(self.n_tot):
-            eqn_sys.RHS[i] -= dxPA[i]*self.sigma_eps*(T[i]**4 - self.T_ext_4)
+        eqn_sys.RHS -= dxPA*self.sigma_eps*(T**4 - self.T_ext_4)
 
 
 class timed_boundary:
