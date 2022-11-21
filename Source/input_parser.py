@@ -199,13 +199,6 @@ class input_parser:
         if 'Print Every N Steps' not in time_dict.keys():
             time_dict['Print Every N Steps'] = 10
 
-        # Set number of cores if not provided
-        if 'Number of Cores' not in time_dict.keys():
-            time_dict['Number of Cores'] = 1
-        elif sys.version_info[0] < 3:
-            err_str = 'Multiprocessing is not supported in Python 2.'
-            raise ValueError(err_str)
-
         # Set initial temperature
         if type(time_dict['T Initial']) is list:
             if len(time_dict['T Initial']) != grid_man.n_layers:

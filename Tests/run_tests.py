@@ -17,8 +17,6 @@ from trans_cond import trans_cond_tests
 from reaction_test import reaction_tests
 from reaction_manager_test import reaction_manager_tests
 from sub_reaction_test import sub_reaction_tests
-if sys.version_info[0] >= 3:
-    from parallel_reaction_test import parallel_reaction_tests
 from radiation_test import rad_tests
 
 

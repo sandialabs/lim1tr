@@ -11,8 +11,6 @@
 from __future__ import division
 import numpy as np
 import time
-import queue
-from multiprocessing import current_process
 import reaction_system
 import reaction_system_helper
 import reaction_models
@@ -167,8 +165,7 @@ class reaction_manager:
                 frac_mat[:,rxn_inds], model_sub_list, self.rho_cp, self.dsc_info))
 
 
-    def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-6, atol=1e-6, rtol=1e-7,
-        processes=None, work_queue=None, result_queue=None, pool=None, n_cores=1):
+    def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-6, atol=1e-6, rtol=1e-7):
         '''Solve the system of ODEs at each node
         This is the main function called from the transient loop
         '''
@@ -186,46 +183,21 @@ class reaction_manager:
             self.clear_nodes()
 
         st_time = time.time()
-
         ind_list = list(range(self.active_nodes.shape[0]))
-        active_node_inds = [ind_list[i::n_cores] for i in range(n_cores)]
-
-        if n_cores == 1:
-            sol_err_list = [self.solve_nodes_wrapper(active_node_inds[0])]
-        elif pool is not None:
-            sol_err_list = pool.map(self.solve_nodes_wrapper, active_node_inds)
-        elif processes is not None:
-            for act_inds in active_node_inds:
-                node_data = self.node_data_wrapper(act_inds, t_arr)
-                work_queue.put(node_data)
-            work_queue.join()
-
+        sol_err_list = self.solve_nodes_wrapper(ind_list)
         self.solve_ode_time = time.time() - st_time
 
         st_time = time.time()
         err_list = []
-        if processes is not None:
-            while not result_queue.empty():
-                sol_err_list = result_queue.get()
-                act_ind = sol_err_list[0]
-                my_sol = sol_err_list[1]
-                self.update_node(act_ind, my_sol)
+        for k in range(len(ind_list)):
+            my_sol = sol_err_list[k][0]
+            act_ind = ind_list[k]
+            self.update_node(act_ind, my_sol)
 
-                # Save temperature
-                T_out[self.active_nodes[act_ind]] = np.copy(my_sol[-1,-1])
+            # Save temperature
+            T_out[self.active_nodes[act_ind]] = np.copy(my_sol[-1,-1])
 
-                err_list.append((self.active_nodes[act_ind], sol_err_list[2]))
-        else:
-            for core in range(n_cores):
-                for k in range(len(active_node_inds[core])):
-                    my_sol = sol_err_list[core][k][0]
-                    act_ind = active_node_inds[core][k]
-                    self.update_node(act_ind, my_sol)
-
-                    # Save temperature
-                    T_out[self.active_nodes[act_ind]] = np.copy(my_sol[-1,-1])
-
-                    err_list.append((self.active_nodes[act_ind], sol_err_list[core][k][1]))
+            err_list.append((self.active_nodes[act_ind], sol_err_list[k][1]))
         self.update_dofs_time = time.time() - st_time
 
         return T_out, err_list
@@ -262,58 +234,6 @@ class reaction_manager:
             sol_err_list.append((my_sol, my_status))
 
         return sol_err_list
-
-
-    def node_data_wrapper(self, act_inds, t_arr):
-        node_data = []
-        for act_ind in act_inds:
-            i = self.active_nodes[act_ind]
-
-            # Create input array
-            v_in = np.zeros(self.n_species + 1)
-
-            # Set species starting values
-            for j in range(len(self.species_name_list)):
-                v_in[j] = self.species_density[self.species_name_list[j]][i]
-
-            # Set temperature starting value
-            v_in[-1] = self.T_in[i]
-
-            # Get reaction system index
-            sys_ind = self.node_to_system_map[i]
-            if sys_ind < 0:
-                err_str = 'No reaction system specified on node {}.'.format(i)
-                raise ValueError(err_str)
-
-            node_data.append([act_ind, v_in, t_arr, sys_ind])
-
-        return node_data
-
-
-    def solve_nodes_consumer(self, work_queue, result_queue):
-        while True:
-            try:
-                item = work_queue.get(block=True)
-            except queue.Empty:
-                # print('empty', current_process().name)
-                continue
-            if item is None:
-                print(current_process().name, 'got break')
-                work_queue.task_done()
-                break
-            else:
-                for node_data in item:
-                    act_ind = node_data[0]
-                    v_in = node_data[1]
-                    t_arr = node_data[2]
-                    sys_ind = node_data[3]
-
-                    # Solve system
-                    my_sol, my_status = self.reaction_systems[sys_ind].solve_ode_node(
-                        t_arr, v_in, dt0=self.dt0, atol=self.atol, rtol=self.rtol)
-
-                    result_queue.put([act_ind, my_sol, my_status])
-                work_queue.task_done()
 
 
     def update_node(self, act_ind, my_sol):
