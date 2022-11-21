@@ -34,17 +34,15 @@ class conduction_manager:
             eqn_sys (object): equation system object
             mat_man (object): material manager object
         '''
-        # Loop over faces
-        for i in range(self.n_tot-1):
-            h_face = mat_man.k_arr[i]*self.idx_e[i]
+        h_face = mat_man.k_arr*self.idx_e
 
-            # Left node
-            eqn_sys.LHS_c[i] += h_face
-            eqn_sys.LHS_u[i] -= h_face
+        # Left node
+        eqn_sys.LHS_c[:self.n_tot-1] += h_face
+        eqn_sys.LHS_u[:self.n_tot-1] -= h_face
 
-            # Right node
-            eqn_sys.LHS_l[i+1] -= h_face
-            eqn_sys.LHS_c[i+1] += h_face
+        # Right node
+        eqn_sys.LHS_l[1:] -= h_face
+        eqn_sys.LHS_c[1:] += h_face
 
 
     def apply_operator(self, eqn_sys, mat_man, T):
@@ -55,12 +53,10 @@ class conduction_manager:
             mat_man (object) : material manager object
             T       (array)  : temperature at previous step
         '''
-        # Loop over faces
-        for i in range(self.n_tot-1):
-            h_face = mat_man.k_arr[i]*self.idx_e[i]
+        h_face = mat_man.k_arr*self.idx_e
 
-            # Left node
-            eqn_sys.RHS[i] += h_face*(T[i+1] - T[i])
+        # Left node
+        eqn_sys.RHS[:self.n_tot-1] += h_face*(T[1:] - T[:self.n_tot-1])
 
-            # Right node
-            eqn_sys.RHS[i+1] += h_face*(T[i] - T[i+1])
+        # Right node
+        eqn_sys.RHS[1:] += h_face*(T[:self.n_tot-1] - T[1:])

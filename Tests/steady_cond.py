@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 class steady_cond_tests(unittest.TestCase):
     def setUp(self):
-        self.plotting = True
+        self.plotting = False
 
 
     def quick_plot(self, x_node, T_ans, T_sol, MSE, fig_name, raw_diff=False):
