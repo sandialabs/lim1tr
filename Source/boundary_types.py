@@ -198,5 +198,5 @@ class timed_boundary:
 
 
     def apply(self, *args):
-        if self.off_time - self.tot_time > 1e-14:
+        if self.off_time - self.tot_time > 1e-16:
             self.bc.apply(*args)

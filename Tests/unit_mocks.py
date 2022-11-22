@@ -23,7 +23,8 @@ time_opts_mock = {'Solution Mode': 'Steady',
     'Print Progress': 1,
     'Print Every N Steps': 10,
     'Number of Cores': 1,
-    'Order': 1}
+    'Order': 1,
+    'T Initial': np.zeros(1)}
 
 
 class grid_mock:

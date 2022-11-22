@@ -23,21 +23,13 @@ import matplotlib.pyplot as plt
 
 class trans_cond_tests(unittest.TestCase):
     def setUp(self):
-        self.plotting = False
+        self.plotting = True
 
 
     def test_trans_end_conv_bdf1(self):
         print('\nTesting first-order transient symmetric convection...')
         # Supply file name
         file_name = os.getcwd() + '/Inputs/trans_end_conv_bdf1.yaml'
-        err = self.trans_end_conv(file_name)
-        self.assertTrue(err < 2e-2,'\tFailed with RMSE {:0.2e}\n'.format(err))
-
-
-    def test_trans_end_conv_bdf1_split(self):
-        print('\nTesting first-order split step transient symmetric convection...')
-        # Supply file name
-        file_name = os.getcwd() + '/Inputs/trans_end_conv_bdf1_split.yaml'
         err = self.trans_end_conv(file_name)
         self.assertTrue(err < 2e-2,'\tFailed with RMSE {:0.2e}\n'.format(err))
 
@@ -93,14 +85,6 @@ class trans_cond_tests(unittest.TestCase):
         self.assertTrue(err < 3e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
-    def test_trans_ext_conv_bdf1_split(self):
-        print('\nTesting first-order transient external convection...')
-        # Supply file name
-        file_name = os.getcwd() + '/Inputs/trans_ext_conv_bdf1_split.yaml'
-        err = self.trans_ext_conv(file_name)
-        self.assertTrue(err < 1.5e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
-
-
     def trans_ext_conv(self, file_name):
         # Run model
         model = main_fv.lim1tr_model(file_name)
@@ -134,6 +118,7 @@ class trans_cond_tests(unittest.TestCase):
 
         dT_rate = 2*10000/(0.01*2000*500)
         T_true = 300 + dT_rate*5
+        print(dT_rate, T_true, eqn_sys.T_sol)
 
         err = abs(T_true - eqn_sys.T_sol[0])
         self.assertTrue(err < 2e-12, '\tFailed with RMSE {:0.2e}\n'.format(err))

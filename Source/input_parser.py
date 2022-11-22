@@ -174,8 +174,6 @@ class input_parser:
             time_dict['dt'] = 0.0
         else:
             time_dict['Solution Mode'] = 'Transient'
-            if 'Force Split' in time_dict.keys():
-                time_dict['Solution Mode'] += ' Split'
 
         # Set max steps if not provided
         if 'Max Steps' not in time_dict.keys():

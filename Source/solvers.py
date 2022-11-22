@@ -49,3 +49,31 @@ def tridiag(a, b, c, d, x, cp, dp, n):
         x[i] = dp[i]-cp[i]*x[i+1]
 
     return x
+
+
+def steady_solve():
+    # Provide options for steady spitfire solve
+    return 0
+
+
+def transient_solve(eqn_sys, verbose=True):
+    '''Transient solve using Spitfire
+    '''
+    if eqn_sys.fixed_step:
+        step_size = eqn_sys.dt
+    else:
+        step_size = PIController(target_error=1.e-8)
+
+    t, q = odesolve(self.right_hand_side,
+                    t_int.T_star,
+                    stop_at_time=t_int.end_time,
+                    save_each_step=True,
+                    linear_setup=self.setup_superlu,
+                    linear_solve=self.solve_superlu,
+                    step_size=step_size,
+                    linear_setup_rate=20,
+                    verbose=verbose,
+                    log_rate=100,
+                    show_solver_stats_in_situ=True)
+
+    return t, q
