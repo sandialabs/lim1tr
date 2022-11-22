@@ -50,11 +50,6 @@ class end_dirichlet(end_bc):
         eqn_sys.RHS[self.n_ind] += phi*self.T_end
 
 
-    def apply_operator(self, eqn_sys, mat_man, T):
-        phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-        eqn_sys.RHS[self.n_ind] += phi*(self.T_end - T[self.n_ind])
-
-
 class end_temperature_control(end_bc):
     def set_params(self, T_i, T_rate, T_cutoff, T_end, h_end):
         self.T_con = T_i
@@ -85,16 +80,6 @@ class end_temperature_control(end_bc):
             eqn_sys.RHS[self.n_ind] += c_end*self.T_end
 
 
-    def apply_operator(self, eqn_sys, mat_man, T):
-        if self.heater_on:
-            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-            eqn_sys.RHS[self.n_ind] += phi*(self.T_con - T[self.n_ind])
-        else:
-            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-            c_end = self.h_end*phi/(self.h_end + phi)
-            eqn_sys.RHS[self.n_ind] += c_end*(self.T_end - T[self.n_ind])
-
-
 class end_convection(end_bc):
     def set_params(self, h, T):
         self.h_end = h
@@ -111,15 +96,6 @@ class end_convection(end_bc):
         eqn_sys.RHS[self.n_ind] += c_end*self.T_end
 
 
-    def apply_operator(self, eqn_sys, mat_man, T):
-        '''Adds the action of the end convection
-        terms on the previous time step to the RHS
-        '''
-        phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-        c_end = self.h_end*phi/(self.h_end + phi)
-        eqn_sys.RHS[self.n_ind] += c_end*(self.T_end - T[self.n_ind])
-
-
 class end_flux(end_bc):
     def set_params(self, flux):
         self.flux = flux
@@ -132,13 +108,6 @@ class end_flux(end_bc):
         eqn_sys.RHS[self.n_ind] += self.flux
 
 
-    def apply_operator(self, eqn_sys, mat_man, T):
-        '''Adds action of heat flux bc terms
-        on the previous time step to the RHS
-        '''
-        eqn_sys.RHS[self.n_ind] += self.flux
-
-
 class end_radiation(end_bc):
     def set_params(self, eps, T):
         self.sigma_eps = 5.67e-8*eps
@@ -147,17 +116,10 @@ class end_radiation(end_bc):
 
 
     def apply(self, eqn_sys, mat_man, T):
-        '''Adds end convection BC terms to system.
+        '''Adds end radiation BC terms to system.
         '''
         eqn_sys.J_c[self.n_ind] += self.sigma_eps*4*T[self.n_ind]**3
         eqn_sys.F[self.n_ind] += self.sigma_eps*(T[self.n_ind]**4 - self.T_ext_4)
-
-
-    def apply_operator(self, eqn_sys, mat_man, T):
-        '''Adds the action of the end convection
-        terms on the previous time step to the RHS
-        '''
-        eqn_sys.RHS[self.n_ind] -= self.sigma_eps*(T[self.n_ind]**4 - self.T_ext_4)
 
 
 class end_radiation_arc(end_radiation):
@@ -209,17 +171,6 @@ class ext_convection(ext_bc):
         eqn_sys.RHS += h_const*self.T_ext
 
 
-    def apply_operator(self, eqn_sys, mat_man, T):
-        '''Adds the action of the external convection terms
-        on the previous time step to the RHS
-        '''
-        # convection constant
-        h_const = self.h_ext*self.dx_arr*self.PA_r
-
-        # RHS
-        eqn_sys.RHS += h_const*(self.T_ext - T)
-
-
 class ext_radiation(ext_bc):
     def set_params(self, eps, T):
         self.sigma_eps = 5.67e-8*eps
@@ -233,14 +184,6 @@ class ext_radiation(ext_bc):
         dxPA = self.dx_arr*self.PA_r
         eqn_sys.J_c += dxPA*self.sigma_eps*4*T**3
         eqn_sys.F += dxPA*self.sigma_eps*(T**4 - self.T_ext_4)
-
-
-    def apply_operator(self, eqn_sys, mat_man, T):
-        '''Adds the action of the end convection
-        terms on the previous time step to the RHS
-        '''
-        dxPA = self.dx_arr*self.PA_r
-        eqn_sys.RHS -= dxPA*self.sigma_eps*(T**4 - self.T_ext_4)
 
 
 class timed_boundary:
@@ -257,8 +200,3 @@ class timed_boundary:
     def apply(self, *args):
         if self.off_time - self.tot_time > 1e-14:
             self.bc.apply(*args)
-
-
-    def apply_operator(self, *args):
-        if self.off_time - self.tot_time > 1e-14:
-            self.bc.apply_operator(*args)

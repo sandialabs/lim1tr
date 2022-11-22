@@ -119,24 +119,9 @@ class bc_manager:
             bc.apply(eqn_sys, mat_man)
 
 
-    def apply_operator(self, eqn_sys, mat_man, T, tot_time):
-        for control_bc in self.controlled_boundaries:
-            control_bc.update_temperature(tot_time)
-        for timed_bc in self.timed_boundaries:
-            timed_bc.set_time(tot_time)
-            timed_bc.apply_operator(eqn_sys, mat_man, T)
-        for bc in self.boundaries:
-            bc.apply_operator(eqn_sys, mat_man, T)
-
-
     def apply_nonlinear(self, eqn_sys, mat_man, T):
         for bc in self.nonlinear_boundaries:
             bc.apply(eqn_sys, mat_man, T)
-
-
-    def apply_operator_nonlinear(self, eqn_sys, mat_man, T):
-        for bc in self.nonlinear_boundaries:
-            bc.apply_operator(eqn_sys, mat_man, T)
 
 
     def update(self, T, dt, split_step):

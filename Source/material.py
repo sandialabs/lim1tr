@@ -84,6 +84,7 @@ class material_manager:
 
             # Evaluate the mass matrix
             self.m_arr[i] = self.rho_arr[i]*self.cp_arr[i]*self.dx_arr[i]
+        self.i_m_arr = 1/self.m_arr
 
         # Evaluate interface properties
         # Internal interfaces

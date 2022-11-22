@@ -86,6 +86,7 @@ class reaction_manager:
         molecular_weights = dict(zip(spec_dict['Names'], spec_dict['Molecular Weights']))
         initail_mass_fraction = dict(zip(spec_dict['Names'], spec_dict['Initial Mass Fraction']))
 
+        self.species_density_vec = np.zeros(self.n_tot*self.n_species)
         for i in range(self.n_species):
             name = self.species_name_list[i]
             self.species_density[name] = np.zeros(self.n_tot)
@@ -115,7 +116,6 @@ class reaction_manager:
 
         # Set up domain where reactions are present
         self.active_nodes = np.argwhere(self.mat_nodes == self.mat_name).flatten()
-        self.inactive_node_list = []
 
 
     def load_reactions(self, rxn_dict):
@@ -179,10 +179,6 @@ class reaction_manager:
         self.dt0 = dt0
         self.atol = atol
         self.rtol = rtol
-
-        # Clear nodes that were previously deactivated
-        if len(self.inactive_node_list) > 0:
-            self.clear_nodes()
 
         st_time = time.time()
         ind_list = list(range(self.active_nodes.shape[0]))
@@ -259,30 +255,3 @@ class reaction_manager:
             self.species_rate[self.species_name_list[j]][i] = np.copy(rate_arr[j])
         self.temperature_rate[i] = np.copy(rate_arr[-1])
         self.heat_release_rate[i] = np.copy(rate_arr[-1])*self.rho_cp
-
-        # Check for reactant exhaustion
-        is_complete = self.reaction_systems[sys_ind].check_complete(my_sol[-1,:])
-        if is_complete:
-            self.inactive_node_list.append(act_ind)
-
-
-    def clear_nodes(self):
-        '''Clear out exhausted species and rates for nodes
-        who's reaction systems completed last time step.
-        '''
-        for act_ind in self.inactive_node_list:
-            i = self.active_nodes[act_ind]
-            # Clear exhausted species
-            for j in range(len(self.species_name_list)):
-                if self.species_density[self.species_name_list[j]][i] < self.small_number:
-                    self.species_density[self.species_name_list[j]][i] = 0.0
-
-            # Clear rates
-            for j in range(len(self.species_name_list)):
-                self.species_rate[self.species_name_list[j]][i] = 0.0
-            self.temperature_rate[i] = 0.0
-            self.heat_release_rate[i] = 0.0
-
-        # Remove nodes from active nodes
-        self.active_nodes = np.delete(self.active_nodes, self.inactive_node_list)
-        self.inactive_node_list = []

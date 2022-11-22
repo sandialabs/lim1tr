@@ -102,6 +102,22 @@ class eqn_sys:
         self.F = np.zeros(self.n_tot)
 
 
+    # def spitfire_solve(self):
+    #     model = DiffusionReaction(ics, D, src, jac, grid_points=256)
+
+    #     t, q = odesolve(model.right_hand_side,
+    #                     model.initial_state,
+    #                     stop_at_steady=True,
+    #                     save_each_step=True,
+    #                     linear_setup=model.setup_superlu,
+    #                     linear_solve=model.solve_superlu,
+    #                     step_size=PIController(target_error=1.e-8),
+    #                     linear_setup_rate=20,
+    #                     verbose=True,
+    #                     log_rate=100,
+    #                     show_solver_stats_in_situ=True)
+
+
     def transient_loop(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
         # Check CFL
         t_int.check_cfl(mat_man)
@@ -207,6 +223,12 @@ class eqn_sys:
 
         # Apply linear terms
         self.apply_conduction_operators(mat_man, cond_man, bc_man, t_int, split_step)
+        self.LHS_c *= mat_man.i_m_arr
+        self.LHS_l *= mat_man.i_m_arr
+        self.LHS_u *= mat_man.i_m_arr
+        self.RHS *= mat_man.i_m_arr
+        if(t_int.order == 1):
+            t_int.apply_BDF1(self, mat_man, split_step)
 
         # Solve
         self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, self.RHS,
@@ -225,19 +247,28 @@ class eqn_sys:
 
         # Apply terms that don't depend on the new temperature
         self.apply_conduction_operators(mat_man, cond_man, bc_man, t_int, split_step)
+        self.LHS_c *= mat_man.i_m_arr
+        self.LHS_l *= mat_man.i_m_arr
+        self.LHS_u *= mat_man.i_m_arr
+        self.RHS *= mat_man.i_m_arr
+        if(t_int.order == 1):
+            t_int.apply_BDF1(self, mat_man, split_step)
 
         err = self.err_tol*2
         i = 0
         if self.print_nonlinear:
             print('Nonlinear iterations:')
         while (err > self.err_tol) & (i < self.max_nonlinear_its):
+            # Build system for Newton step
+            bc_man.apply_nonlinear(self, mat_man, self.T_sol)
+            self.J_c *= mat_man.i_m_arr
+            self.F *= mat_man.i_m_arr
+
             # Compute linear contributions to F
-            self.F = self.LHS_c*self.T_sol - self.RHS
+            self.F += self.LHS_c*self.T_sol - self.RHS
             self.F[:-1] += self.LHS_u[:-1]*self.T_sol[1:]
             self.F[1:] += self.LHS_l[1:]*self.T_sol[:-1]
 
-            # Build system for Newton step
-            bc_man.apply_nonlinear(self, mat_man, self.T_sol)
             self.J_c += self.LHS_c
             self.J_u += self.LHS_u
             self.J_l += self.LHS_l
@@ -276,14 +307,19 @@ class eqn_sys:
         # Apply boundary terms
         bc_man.apply(self, mat_man, t_int.tot_time)
 
-        # Apply stepper
-        if(t_int.order == 1):
-            t_int.apply_BDF1(self, mat_man, split_step)
-        elif(t_int.order == 2):
-            cond_man.apply_operator(self, mat_man, t_int.T_star)
-            bc_man.apply_operator(self, mat_man, t_int.T_star, t_int.tot_time)
-            bc_man.apply_operator_nonlinear(self, mat_man, t_int.T_star)
-            t_int.apply_CN(self, mat_man, split_step)
+        # # Apply operator for CN
+        # if(t_int.order == 2):
+        #     cond_man.apply_operator(self, mat_man, t_int.T_star)
+        #     bc_man.apply_operator(self, mat_man, t_int.T_star, t_int.tot_time)
+        #     bc_man.apply_operator_nonlinear(self, mat_man, t_int.T_star)
+
+
+    # def apply_time_integration(self, mat_man, t_int, split_step):
+    #     # Apply stepper
+    #     if(t_int.order == 1):
+    #         t_int.apply_BDF1(self, mat_man, split_step)
+    #     elif(t_int.order == 2):
+    #         t_int.apply_CN(self, mat_man, split_step)
 
 
     def transient_ode_solve(self, mat_man, cond_man, bc_man, reac_man, t_int):

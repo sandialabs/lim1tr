@@ -90,10 +90,10 @@ class rad_tests(unittest.TestCase):
         self.assertTrue(err < 2e-6, '\tFailed with MSE {:0.2e}\n'.format(err))
 
 
-    def test_trans_rad_two(self):
-        print('\nTesting transient radiation with second order time...')
-        err = self.trans_rad(2)
-        self.assertTrue(err < 1e-13, '\tFailed with MSE {:0.2e}\n'.format(err))
+    # def test_trans_rad_two(self):
+    #     print('\nTesting transient radiation with second order time...')
+    #     err = self.trans_rad(2)
+    #     self.assertTrue(err < 1e-13, '\tFailed with MSE {:0.2e}\n'.format(err))
 
 
     def lumped_rad(self, T, dt, phi, T_i, T_e):

@@ -47,19 +47,14 @@ class time_int:
             self.apply_step(eqn_sys, mat_man)
 
 
-    def apply_CN(self, eqn_sys, mat_man, split_step):
-        if split_step:
-            self.apply_step(eqn_sys, mat_man, time_mod=4.0)
-        else:
-            self.apply_step(eqn_sys, mat_man, time_mod=2.0)
-
-
     def apply_step(self, eqn_sys, mat_man, time_mod=1):
         # LHS
-        eqn_sys.LHS_c += mat_man.m_arr*time_mod*self.idt
+        # eqn_sys.LHS_c += mat_man.m_arr*time_mod*self.idt
+        eqn_sys.LHS_c += time_mod*self.idt
 
         # RHS
-        eqn_sys.RHS += mat_man.m_arr*self.T_star*time_mod*self.idt
+        # eqn_sys.RHS += mat_man.m_arr*self.T_star*time_mod*self.idt
+        eqn_sys.RHS += self.T_star*time_mod*self.idt
 
 
     def post_solve(self, T_sol):
