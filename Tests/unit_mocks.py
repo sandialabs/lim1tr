@@ -24,6 +24,9 @@ time_opts_mock = {'Solution Mode': 'Steady',
     'Print Every N Steps': 10,
     'Number of Cores': 1,
     'Order': 1,
+    'Run Time': 1,
+    'Fixed Step': True,
+    'dt': 0,
     'T Initial': np.zeros(1)}
 
 

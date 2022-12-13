@@ -168,10 +168,17 @@ class input_parser:
         '''
         time_dict = self.cap_dict['Time']
 
+        # Adaptive (default) or fixed time
+        if 'dt' in time_dict.keys():
+            time_dict['Fixed Step'] = True
+        else:
+            time_dict['Fixed Step'] = False
+            time_dict['dt'] = 0.0
+
         # Determine tranisent run
         if time_dict['Run Time'] < 1e-16:
             time_dict['Solution Mode'] = 'Steady'
-            time_dict['dt'] = 0.0
+            # time_dict['dt'] = 0.0
         else:
             time_dict['Solution Mode'] = 'Transient'
 

@@ -45,7 +45,7 @@ class lim1tr_model:
         cond_man = conduction.conduction_manager(grid_man)
 
         # Initialize equation system
-        eqn_sys = equation_sys.eqn_sys(grid_man, reac_man, time_opts)
+        eqn_sys = equation_sys.eqn_sys(mat_man, cond_man, bc_man, grid_man, reac_man, time_opts)
 
         # Initialize linear solver (for numba)
         eqn_sys.init_linear_solver()
@@ -54,7 +54,14 @@ class lim1tr_model:
         t_int = time_integrator.time_int(grid_man, time_opts)
 
         # Solve system
-        eqn_sys.solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
+        # eqn_sys.solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
+        if 'Steady' in time_opts['Solution Mode']:
+            eqn_sys.steady_solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
+        else:
+            t, q = solvers.transient_solve(eqn_sys)
+            import pickle as p
+            with open('test.p', 'wb') as f:
+                p.dump([t, q], f)
 
         # Return managers and options
         return eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts

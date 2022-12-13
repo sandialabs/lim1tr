@@ -43,20 +43,3 @@ class conduction_manager:
         # Right node
         eqn_sys.LHS_l[1:] -= h_face
         eqn_sys.LHS_c[1:] += h_face
-
-
-    # def apply_operator(self, eqn_sys, mat_man, T):
-    #     '''Adds the action of the spatial operator on
-    #        the temperature T to the RHS
-    #     Args:
-    #         eqn_sys (object) : equation system object
-    #         mat_man (object) : material manager object
-    #         T       (array)  : temperature at previous step
-    #     '''
-    #     h_face = mat_man.k_arr*self.idx_e
-
-    #     # Left node
-    #     eqn_sys.RHS[:self.n_tot-1] += h_face*(T[1:] - T[:self.n_tot-1])
-
-    #     # Right node
-    #     eqn_sys.RHS[1:] += h_face*(T[:self.n_tot-1] - T[1:])

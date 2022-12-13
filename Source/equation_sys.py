@@ -12,23 +12,43 @@ from __future__ import division
 import numpy as np
 import solvers
 import time
-from scipy.sparse import csc_matrix, diags, block_diag, eye as speye
+from scipy.sparse import csc_matrix, diags, bmat, eye as speye
 from scipy.sparse.linalg import splu as superlu_factor
-
-from spitfire import PIController, odesolve
-from spitfire import RK4ClassicalS4P4, BackwardEulerS1P1Q1, SimpleNewtonSolver 
 
 
 class eqn_sys:
-    def __init__(self, grid_man, reac_man, time_opts):
+    def __init__(self, mat_man, cond_man, bc_man, grid_man, reac_man, time_opts):
         sol_mode = time_opts['Solution Mode']
         self.n_tot = grid_man.n_tot
+        self.dof_node = 1
         self.dx_arr = grid_man.dx_arr
 
         # Time options
-        self.T_init = time_opts['T Initial']
+        self.initial_state = time_opts['T Initial']
+        self.norm_weighting = np.full(self.n_tot, 1e-3)
+        self.end_time = time_opts['Run Time']
+        self.fixed_step = time_opts['Fixed Step']
+        self.dt = time_opts['dt']
         self.print_progress = time_opts['Print Progress']
         self.print_every = time_opts['Print Every N Steps']
+
+        # Diffusion and material operators
+        self.mat_man = mat_man
+        self.cond_man = cond_man
+        self.bc_man = bc_man
+
+        # Reaction manager
+        self.reac_man = reac_man
+        if self.reac_man:
+            self.dof_node += self.reac_man.n_species
+
+            # Build initial state
+            self.initial_state = np.hstack([
+                self.initial_state, self.reac_man.initial_density])
+            species_weight = 1/self.reac_man.material_info['rho']
+            self.norm_weighting = np.hstack([
+                self.norm_weighting, 
+                np.full(self.reac_man.initial_density.shape[0], species_weight)])
 
         # Nonlinear options
         self.print_nonlinear = False
@@ -50,44 +70,72 @@ class eqn_sys:
         self.J_l = np.zeros(self.n_tot)
         self.F = np.zeros(self.n_tot)
 
-        # Timers
+        # Timers and counters
         self.time_conduction = 0
+        self.time_reaction = 0
+        self.time_conduction_jac = 0
+        self.time_reaction_jac = 0
+        self.factor_superlu_time = 0
+        self.solve_superlu_time = 0
+        self.cond_apply_time = 0
+        self.cond_F_time = 0
+        self.bc_time = 0
+        self.nlbc_time = 0
+        self.clean_time = 0
         self.time_ode = 0
         self.time_ode_solve = 0
         self.time_ode_update = 0
         self.time_data = 0
+        self.rhs_count = 0
+        self.setup_count = 0
+        self.solve_count = 0
 
         # Create operator and identity
         self._lhs_inverse_operator = None
-        self._I = csc_matrix(speye(self.n_tot))
+        self._I = csc_matrix(speye(self.n_tot*self.dof_node))
 
-        # Set main solver based on solution mode
-        if 'Steady' in sol_mode:
-            print('SOL: Steady.')
-            self.solve = self.steady_solve
-        elif 'Transient' in sol_mode:
-            # self.solve = self.transient_loop
-            self.solve = self.spitfire_solve
-            # if 'Split' in sol_mode:
-            #     print('SOL: Forcing split solve.')
-            #     self.transient_solve = self.split_step_solve
-            # elif reac_man:
-            #     self.init_reac(reac_man)
-            # else:
-            #     print('SOL: No reaction manager found. Transient conduction solve.')
-            #     self.transient_solve =  self.whole_step_solve
+        # Initialize Jacobian
+        ones = np.ones(self.n_tot)
+        diag_ind = np.arange(self.n_tot, dtype=int)
+        T_jac = csc_matrix(diags([ones[1:], ones, ones[:-1]], [-1, 0, 1]))
 
+        if self.reac_man:
+            T_jac_inds = csc_matrix(diags([
+                diag_ind[1:],
+                diag_ind[:-1] + self.n_tot],
+                [-1, 1], dtype=int))
+            R_jac_inds = np.zeros([self.dof_node, self.dof_node, self.n_tot], dtype=int)
+            R_flat_inds = np.arange(self.dof_node*self.dof_node*self.n_tot, dtype=int) + 2*self.n_tot
+            R_jac_all_inds = R_flat_inds.reshape([self.dof_node, self.dof_node, self.n_tot])
 
-    # def init_reac(self, reac_man):
-    #     if reac_man.rxn_only:
-    #         print('SOL: Reaction only.')
-    #         self.transient_solve = self.transient_ode_solve
-    #         if self.n_tot > 1:
-    #             err_str = 'Reaction Only mode not available with more than one control volume.'
-    #             raise ValueError(err_str)
-    #     else:
-    #         print('SOL: Split solve with reactions.')
-    #         self.transient_solve = self.split_step_solve
+            # Assemble full Jacobian
+            R_jac = np.zeros([self.dof_node, self.dof_node, self.n_tot])
+            for i in range(self.reac_man.n_cells):
+                b1, b2 = self.reac_man.cells[i].bounds
+                R_jac[:,:,b1:b2] = 1.0
+                R_jac_inds[:,:,b1:b2] = R_jac_all_inds[:,:,b1:b2]
+            R_jac_inds[0,0,:] = R_jac_all_inds[0,0,:]
+            blocks = []
+            ind_blocks = []
+            for i in range(self.dof_node):
+                row = []
+                ind_row = []
+                for j in range(self.dof_node):
+                    row.append(csc_matrix(diags(R_jac[i,j,:])))
+                    ind_row.append(csc_matrix(diags(R_jac_inds[i,j,:], dtype=int)))
+                blocks.append(row)
+                ind_blocks.append(ind_row)
+            blocks[0][0] += T_jac
+            ind_blocks[0][0] += T_jac_inds
+            self.jac = bmat(blocks, format='csc')
+            self.ind_jac = bmat(ind_blocks, format='csc')
+        else:
+            self.jac = T_jac
+            self.ind_jac = csc_matrix(diags([
+                diag_ind[1:],
+                diag_ind + 2*self.n_tot,
+                diag_ind[:-1] + self.n_tot],
+                [-1, 0, 1], dtype=int))
 
 
     def print_sys(self):
@@ -115,76 +163,68 @@ class eqn_sys:
         self.F = np.zeros(self.n_tot)
 
 
-    def spitfire_solve(self, mat_man, cond_man, bc_man, reac_man, data_man, t_int):
-        self.mat_man = mat_man
-        self.cond_man = cond_man
-        self.bc_man = bc_man
-
-        t, q = odesolve(self.right_hand_side,
-                    t_int.T_star,
-                    stop_at_time=t_int.end_time,
-                    save_each_step=True,
-                    linear_setup=self.setup_superlu,
-                    linear_solve=self.solve_superlu,
-                    step_size=PIController(target_error=1.e-8),
-                    linear_setup_rate=20,
-                    verbose=True,
-                    log_rate=100,
-                    show_solver_stats_in_situ=True)
-        # t, q = odesolve(self.right_hand_side,
-        #                 t_int.T_star,
-        #                 stop_at_time=t_int.end_time,
-        #                 save_each_step=True,
-        #                 step_size=t_int.dt,
-        #                 method=RK4ClassicalS4P4())
-        # t, q = odesolve(self.right_hand_side,
-        #                 self.T_init,
-        #                 stop_at_time=t_int.end_time,
-        #                 save_each_step=True,
-        #                 linear_setup=self.setup_superlu,
-        #                 linear_solve=self.solve_superlu,
-        #                 step_size=t_int.dt,
-        #                 verbose=True,
-        #                 method=BackwardEulerS1P1Q1(SimpleNewtonSolver()))
-        self.T_sol = q[-1,:]
-
-
     def right_hand_side(self, t, state):
+        self.rhs_count += 1
+        t_st = time.time()
         self.clean()
         self.clean_nonlinear()
-        # print(state)
+        self.clean_time += time.time() - t_st
+
+        t_st = time.time()
         # Assemble conduction RHS
+        tc_st = time.time()
         self.cond_man.apply(self, self.mat_man)
+        self.cond_apply_time += time.time() - tc_st
 
         # Apply linear boundary terms
+        tbc_st = time.time()
         self.bc_man.apply(self, self.mat_man, t)
+        self.bc_time += time.time() - tbc_st
 
         # Compute linear contributions to F
-        self.F = self.LHS_c*state - self.RHS
-        self.F[:-1] += self.LHS_u[:-1]*state[1:]
-        self.F[1:] += self.LHS_l[1:]*state[:-1]
+        tl_st = time.time()
+        T_arr = state[:self.n_tot]
+        self.F = self.LHS_c*T_arr - self.RHS
+        self.F[:-1] += self.LHS_u[:-1]*T_arr[1:]
+        self.F[1:] += self.LHS_l[1:]*T_arr[:-1]
+        self.cond_F_time += time.time() - tl_st
 
         # Non-linear BCs
-        self.bc_man.apply_nonlinear(self, self.mat_man, state)
+        tnl_st = time.time()
+        self.bc_man.apply_nonlinear(self, self.mat_man, T_arr)
+        self.nlbc_time += time.time() - tnl_st
+
         self.F *= -1*self.mat_man.i_m_arr
 
+        self.time_conduction += time.time() - t_st
+
         # Assemble RXN F
+        if self.reac_man:
+            t_st = time.time()
+            RHS_T, RHS_species = self.reac_man.right_hand_side(t, state)
+            self.F += RHS_T*self.mat_man.i_rcp
+            self.F = np.hstack([self.F, RHS_species])
+            self.time_reaction += time.time() - t_st
 
         return self.F
 
 
     def setup_superlu(self, t, state, prefactor):
+        self.setup_count += 1
+        t_st = time.time()
         self.clean()
         self.clean_nonlinear()
+        self.clean_time += time.time() - t_st
 
         # Assemble conduction RHS
+        t_st = time.time()
         self.cond_man.apply(self, self.mat_man)
 
         # Apply linear boundary terms
         self.bc_man.apply(self, self.mat_man, t)
 
         # Non-linear BCs
-        self.bc_man.apply_nonlinear(self, self.mat_man, state)
+        self.bc_man.apply_nonlinear(self, self.mat_man, state[:self.n_tot])
 
         self.J_c += self.LHS_c
         self.J_u += self.LHS_u
@@ -193,17 +233,45 @@ class eqn_sys:
         self.J_l *= -1*self.mat_man.i_m_arr
         self.J_u *= -1*self.mat_man.i_m_arr
 
-        # Assemble RXN Jacobian
+        # Make flat array to map in to Jacobian
+        J_flat = np.zeros(self.n_tot*(2 + self.dof_node**2))
+        J_flat[:self.n_tot] = self.J_l
+        J_flat[self.n_tot:2*self.n_tot] = self.J_u
+        self.time_conduction_jac += time.time() - t_st
 
+        t_st = time.time()
+        if self.reac_man:
+            # Assemble RXN Jacobian
+            R_jac = self.reac_man.jacobian(t, state)
 
-        # Assemble full Jacobian
-        jac = csc_matrix(diags([self.J_l[1:], self.J_c, self.J_u[:-1]], [-1, 0, 1]))
-        # print(jac.toarray())
-        self._lhs_inverse_operator = superlu_factor(prefactor * jac - self._I)
+            # Convert temperature ODEs to K/s
+            for j in range(self.dof_node):
+                R_jac[0,j,:] *= self.mat_man.i_rcp
+
+            # Add in conduction contribution to center diagonal
+            R_jac[0,0,:] += self.J_c
+
+            # Flatten Jacobian
+            J_flat[2*self.n_tot:] = R_jac.ravel()
+        else:
+            J_flat[2*self.n_tot:] = self.J_c
+        self.jac.data = J_flat[self.ind_jac.data]
+        self.time_reaction_jac += time.time() - t_st
+
+        t_st = time.time()
+        self._lhs_inverse_operator = superlu_factor(prefactor * self.jac - self._I)
+        self.factor_superlu_time += time.time() - t_st
 
 
     def solve_superlu(self, residual):
-        return self._lhs_inverse_operator.solve(residual), 1, True
+        self.solve_count += 1
+        t_st = time.time()
+        l_op_solve = self._lhs_inverse_operator.solve(residual)
+        self.solve_superlu_time += time.time() - t_st
+        return l_op_solve, 1, True
+
+
+
 
 
 

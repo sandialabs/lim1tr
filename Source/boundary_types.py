@@ -147,9 +147,8 @@ class end_radiation_arc(end_radiation):
 class ext_bc(bc_base):
     def __init__(self, dx_arr, PA_r):
         self.name = 'ext'
-        self.dx_arr = dx_arr
         self.n_tot = dx_arr.shape[0]
-        self.PA_r = PA_r
+        self.dx_PA_r = dx_arr*PA_r
 
 
 class ext_convection(ext_bc):
@@ -162,7 +161,7 @@ class ext_convection(ext_bc):
     def apply(self, eqn_sys, mat_man):
         '''Adds external convection terms
         '''
-        h_const = self.h_ext*self.dx_arr*self.PA_r
+        h_const = self.h_ext*self.dx_PA_r
 
         # LHS
         eqn_sys.LHS_c += h_const
@@ -181,9 +180,8 @@ class ext_radiation(ext_bc):
     def apply(self, eqn_sys, mat_man, T):
         '''Adds end convection BC terms to system.
         '''
-        dxPA = self.dx_arr*self.PA_r
-        eqn_sys.J_c += dxPA*self.sigma_eps*4*T**3
-        eqn_sys.F += dxPA*self.sigma_eps*(T**4 - self.T_ext_4)
+        eqn_sys.J_c += self.dx_PA_r*self.sigma_eps*4*T**3
+        eqn_sys.F += self.dx_PA_r*self.sigma_eps*(T**4 - self.T_ext_4)
 
 
 class timed_boundary:

@@ -27,7 +27,7 @@ class build_tests(unittest.TestCase):
         k_a = 10.
         grid_man, mat_man = unit_meshes.mesh_one(dx_a=dx_a,k_a=k_a)
         cond_man = conduction.conduction_manager(grid_man)
-        eqn_sys = equation_sys.eqn_sys(grid_man, False, time_opts_mock)
+        eqn_sys = equation_sys.eqn_sys(None, None, None, grid_man, False, time_opts_mock)
 
         # Do the apply
         cond_man.apply(eqn_sys, mat_man)
@@ -71,7 +71,7 @@ class build_tests(unittest.TestCase):
         dx_a = 0.5
         k_a = 10.
         grid_man, mat_man = unit_meshes.mesh_one(dx_a=dx_a,k_a=k_a)
-        eqn_sys = equation_sys.eqn_sys(grid_man, False, time_opts_mock)
+        eqn_sys = equation_sys.eqn_sys(None, None, None, grid_man, False, time_opts_mock)
         bc_man = boundary.bc_manager(grid_man)
 
         # Set the boundary terms

@@ -89,22 +89,5 @@ class reaction_manager_tests(unittest.TestCase):
         self.assertTrue(test_passed, err_message)
 
 
-    def test_map_system_index_to_node(self):
-        print('\nTesting construction of the node to reaction system map...')
-        n_rxn = 3
-        n_cells = 4
-        active_cells = np.ones([n_rxn, n_cells], dtype=int)
-        active_cells[:,0] = [1,1,0]
-        active_cells[:,2] = [1,1,0]
-        active_cells[:,3] = [0,0,1]
-        system_index, unique_system_list = reaction_system_helper.find_unique_systems(active_cells)
-        cell_node_key = [0, 0, 1, 1, 2, 2, 0, 0, 3, 3, 4, 4]
-        true_node_to_system_map = [-1, -1, 0, 0, 1, 1, -1, -1, 0, 0, 2, 2]
-        node_to_system_map = reaction_system_helper.map_system_to_node(system_index, cell_node_key)
-
-        sys_diff = sum(abs(true_node_to_system_map - node_to_system_map))
-        self.assertFalse(sys_diff > 0, '\tFailed: incorrect node to system map.\n')
-
-
 if __name__ == '__main__':
     unittest.main()
