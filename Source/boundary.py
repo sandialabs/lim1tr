@@ -28,6 +28,7 @@ class bc_manager:
         self.boundaries = []
         self.nonlinear_boundaries = []
         self.timed_boundaries = []
+        self.controlled_boundaries = []
         self.arc_boundaries = []
         self.nonlinear_flag = False
 
@@ -46,6 +47,9 @@ class bc_manager:
             elif end_params['Type'] == 'dirichlet':
                 end_bc = boundary_types.end_dirichlet(self.dx_arr, my_end)
                 end_bc.set_params(end_params['T'])
+            elif end_params['Type'] == 'temperature control':
+                end_bc = boundary_types.end_temperature_control(self.dx_arr, my_end)
+                end_bc.set_params(end_params['T'], end_params['T Rate'], end_params['T Cutoff'])
             elif end_params['Type'] == 'convection':
                 end_bc = boundary_types.end_convection(self.dx_arr, my_end)
                 end_bc.set_params(end_params['h'], end_params['T'])
@@ -92,6 +96,9 @@ class bc_manager:
             off_time = params['Deactivation Time']
             timed_bc = boundary_types.timed_boundary(bc, off_time)
             self.timed_boundaries.append(timed_bc)
+        elif 'control' in bc.name:
+            self.controlled_boundaries.append(bc)
+            self.boundaries.append(bc)
         elif 'radiation' in bc.name:
             self.nonlinear_boundaries.append(bc)
         else:
@@ -102,6 +109,8 @@ class bc_manager:
 
 
     def apply(self, eqn_sys, mat_man, tot_time):
+        for control_bc in self.controlled_boundaries:
+            control_bc.update_temperature(tot_time)
         for timed_bc in self.timed_boundaries:
             timed_bc.set_time(tot_time)
             timed_bc.apply(eqn_sys, mat_man)
@@ -110,6 +119,8 @@ class bc_manager:
 
 
     def apply_operator(self, eqn_sys, mat_man, T, tot_time):
+        for control_bc in self.controlled_boundaries:
+            control_bc.update_temperature(tot_time)
         for timed_bc in self.timed_boundaries:
             timed_bc.set_time(tot_time)
             timed_bc.apply_operator(eqn_sys, mat_man, T)

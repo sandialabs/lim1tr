@@ -52,8 +52,36 @@ class end_dirichlet(end_bc):
 
     def apply_operator(self, eqn_sys, mat_man, T):
         phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-        eqn_sys.LHS_c[self.n_ind] += phi
         eqn_sys.RHS[self.n_ind] += phi*(self.T_end - T[self.n_ind])
+
+
+class end_temperature_control(end_bc):
+    def set_params(self, T_i, T_rate, T_cutoff):
+        self.T_end = T_i
+        self.T_i = T_i
+        self.T_rate = T_rate
+        self.T_cutoff = T_cutoff
+        self.name += '_control'
+        self.heater_on = True
+
+
+    def update_temperature(self, tot_time):
+        self.T_end = self.T_i + self.T_rate*tot_time
+        if self.T_end >= self.T_cutoff:
+            self.heater_on = False
+
+
+    def apply(self, eqn_sys, mat_man):
+        if self.heater_on:
+            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
+            eqn_sys.LHS_c[self.n_ind] += phi
+            eqn_sys.RHS[self.n_ind] += phi*self.T_end
+
+
+    def apply_operator(self, eqn_sys, mat_man, T):
+        if self.heater_on:
+            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
+            eqn_sys.RHS[self.n_ind] += phi*(self.T_end - T[self.n_ind])
 
 
 class end_convection(end_bc):

@@ -211,5 +211,28 @@ class trans_cond_tests(unittest.TestCase):
         self.assertTrue(err < 1e-13, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
+    def test_controlled_bc(self):
+        print('\nTesting flux boundary deactivation...')
+        # Build model
+        file_name = os.getcwd() + '/Inputs/small_cube.yaml'
+        model = main_fv.lim1tr_model(file_name)
+
+        # Set temperature control on left BC
+        control_bc = {'Type': 'Temperature Control',
+            'T': 300.,
+            'T Rate': 5,
+            'T Cutoff': 325}
+        bnd_dict = {'External': {'Type': 'Adiabatic'},
+            'Left': control_bc,
+            'Right': {'Type': 'Adiabatic'}}
+        model.parser.cap_dict['Boundary'] = bnd_dict
+        model.parser.cap_dict['Materials']['A']['k'] = 50.
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_true = 321.01094462
+
+        err = abs(T_true - eqn_sys.T_sol[0])
+        self.assertTrue(err < 1e-8, '\tFailed with RMSE {:0.2e}\n'.format(err))
+
+
 if __name__ == '__main__':
     unittest.main()
