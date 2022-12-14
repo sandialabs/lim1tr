@@ -103,7 +103,7 @@ class input_parser:
             reac_man = False
 
         # Data manager
-        data_man = data.data_manager(grid_man, bc_man, reac_man, time_opts, self.cap_dict, self.fold_name, self.file_name)
+        data_man = data.data_manager(grid_man, reac_man, self.cap_dict, self.fold_name, self.file_name)
 
         return mat_man, grid_man, bc_man, reac_man, data_man, time_opts
 
@@ -178,13 +178,18 @@ class input_parser:
         # Determine tranisent run
         if time_dict['Run Time'] < 1e-16:
             time_dict['Solution Mode'] = 'Steady'
-            # time_dict['dt'] = 0.0
         else:
             time_dict['Solution Mode'] = 'Transient'
 
         # Set max steps if not provided
         if 'Max Steps' not in time_dict.keys():
             time_dict['Max Steps'] = 1e7
+
+        # Set time stepper target error if not provided
+        if 'Target Error' not in time_dict.keys():
+            time_dict['Target Error'] = 1e-7
+        else:
+            time_dict['Target Error'] = float(time_dict['Target Error'])
         
         # Set accuracy order
         if 'Steady' in time_dict['Solution Mode']:

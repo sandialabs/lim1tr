@@ -10,6 +10,7 @@
 
 from __future__ import division
 import numpy as np
+import time
 from numba import jit
 from spitfire import PIController, odesolve
 from spitfire import RK4ClassicalS4P4, BackwardEulerS1P1Q1, SimpleNewtonSolver 
@@ -53,9 +54,9 @@ def tridiag(a, b, c, d, x, cp, dp, n):
     return x
 
 
-def steady_solve():
-    # Provide options for steady spitfire solve
-    return 0
+def steady_solve(eqn_sys):
+    eqn_sys.steady_solve()
+    print('Conduction Solve Time: {:0.2f} s'.format(eqn_sys.time_conduction))
 
 
 def transient_solve(eqn_sys, verbose=True):
@@ -64,8 +65,9 @@ def transient_solve(eqn_sys, verbose=True):
     if eqn_sys.fixed_step:
         step_size = eqn_sys.dt
     else:
-        step_size = PIController(target_error=1.e-7)
+        step_size = PIController(target_error=eqn_sys.target_error)
 
+    t_st = time.time()
     t, q = odesolve(eqn_sys.right_hand_side,
                     eqn_sys.initial_state,
                     stop_at_time=eqn_sys.end_time,
@@ -78,23 +80,28 @@ def transient_solve(eqn_sys, verbose=True):
                     verbose=verbose,
                     log_rate=100,
                     show_solver_stats_in_situ=True)
+    solve_time = time.time() - t_st
 
-    eqn_sys.T_sol = q[-1,:]
+    # eqn_sys.T_sol = q[-1,:]
+    print(f'Total Solve Time: {solve_time:0.3f} (s)')
     print(f'RHS Cond Time: {eqn_sys.time_conduction:0.3f} (s)')
     print(f'\tRHS Cond Apply: {eqn_sys.cond_apply_time:0.3f} (s)')
     print(f'\tRHS BC Apply: {eqn_sys.bc_time:0.3f} (s)')
     print(f'\tRHS Lin Assemble: {eqn_sys.cond_F_time:0.3f} (s)')
     print(f'\tRHS NL BC Apply: {eqn_sys.nlbc_time:0.3f} (s)')
-    print(f'RHS RXN Time: {eqn_sys.time_reaction:0.3f} (s)')
+    if eqn_sys.reac_man:
+        print(f'RHS RXN Time: {eqn_sys.time_reaction:0.3f} (s)')
     print(f'Jac Cond Time: {eqn_sys.time_conduction_jac:0.3f} (s)')
-    print(f'Jac RXN Time: {eqn_sys.time_reaction_jac:0.3f} (s)')
-    print(f'Slice Time: {eqn_sys.reac_man.cells[0].slice_time:0.3f} (s)')
+    if eqn_sys.reac_man:
+        print(f'Jac RXN Time: {eqn_sys.time_reaction_jac:0.3f} (s)')
+        print(f'Slice Time: {eqn_sys.reac_man.cells[0].slice_time:0.3f} (s)')
     print(f'Factor SuperLU Time: {eqn_sys.factor_superlu_time:0.3f} (s)')
     print(f'Solve SuperLU Time: {eqn_sys.solve_superlu_time:0.3f} (s)')
     print(f'Clean Time: {eqn_sys.clean_time:0.3f} (s)')
-    print(f'RHS Calls: {eqn_sys.rhs_count}')
-    print(f'Setup Calls: {eqn_sys.setup_count}')
-    print(f'Solve Calls: {eqn_sys.solve_count}')
+    print('\nCounts:')
+    print(f'\tRHS Calls: {eqn_sys.rhs_count}')
+    print(f'\tSetup Calls: {eqn_sys.setup_count}')
+    print(f'\tSolve Calls: {eqn_sys.solve_count}')
 
     return t, q
 

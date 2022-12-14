@@ -154,8 +154,6 @@ class reaction_manager:
                     active_cells[i,cell_num-1] = 1
 
         # Determine the number of unique reaction systems
-        # self.node_to_system_map, unique_system_list = reaction_system_helper.map_all_systems(
-        #     active_cells, self.cell_node_key)
         system_index, unique_system_list = reaction_system_helper.find_unique_systems(active_cells)
 
         # Construct reaction systems by pulling out models and columns of frac_mat

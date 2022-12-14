@@ -34,8 +34,11 @@ class reaction_tests(unittest.TestCase):
         print('\nTesting single reaction with a constant temperature ramp...')
 
         # Parse file
-        a_parser = input_parser.input_parser('./Inputs/single_rxn_temperature_ramp.yaml')
-        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
+        # a_parser = input_parser.input_parser('./Inputs/single_rxn_temperature_ramp.yaml')
+        # mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
+
+        model = main_fv.lim1tr_model('./Inputs/single_rxn_temperature_ramp.yaml')
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
         # Solve reaction system
         n_times = 20

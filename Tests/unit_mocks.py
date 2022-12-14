@@ -20,6 +20,7 @@ other_mock = {'Y Dimension': 1.0,
 
 
 time_opts_mock = {'Solution Mode': 'Steady',
+    'Target Error': 1e-7,
     'Print Progress': 1,
     'Print Every N Steps': 10,
     'Number of Cores': 1,

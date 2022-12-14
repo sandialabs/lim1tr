@@ -65,6 +65,8 @@ class bc_manager:
                 end_bc = boundary_types.end_radiation_arc(self.dx_arr, my_end)
                 end_bc.set_params(end_params['eps'], end_params['T'], end_params['Max Rate'])
                 self.nonlinear_flag = True
+                err_str = 'Boundary type {} for {} boundary is currently not supported.'.format(end_params['Type'], my_end)
+                raise ValueError(err_str)
             else:
                 err_str = 'Boundary type {} for {} boundary not found.'.format(end_params['Type'], my_end)
                 raise ValueError(err_str)
@@ -124,12 +126,9 @@ class bc_manager:
             bc.apply(eqn_sys, mat_man, T)
 
 
-    def update(self, T, dt, split_step):
-        dt_mod = 1.
-        if split_step:
-            dt_mod = 0.5
+    def update(self, T, dt):
         for bc in self.arc_boundaries:
-            bc.update_params(T, dt*dt_mod)
+            bc.update_params(T, dt)
 
 
     def update_post_step(self):

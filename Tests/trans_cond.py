@@ -26,18 +26,15 @@ class trans_cond_tests(unittest.TestCase):
         self.plotting = True
 
 
-    def test_trans_end_conv_bdf1(self):
-        print('\nTesting first-order transient symmetric convection...')
+    def test_trans_end_conv(self):
+        print('\nTesting transient symmetric convection...')
         # Supply file name
-        file_name = os.getcwd() + '/Inputs/trans_end_conv_bdf1.yaml'
-        err = self.trans_end_conv(file_name)
-        self.assertTrue(err < 2e-2,'\tFailed with RMSE {:0.2e}\n'.format(err))
+        file_name = os.getcwd() + '/Inputs/trans_end_conv.yaml'
 
-
-    def trans_end_conv(self, file_name):
         # Run model
         model = main_fv.lim1tr_model(file_name)
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_sol = data_man.data_dict['Temperature'][-1,:]
 
         # Fourier number
         L = np.sum(grid_man.dx_arr)*0.5
@@ -58,37 +55,31 @@ class trans_cond_tests(unittest.TestCase):
         T_ans = T_right + theta*(np.mean(time_opts['T Initial']) - T_right)
 
         # Calculate error
-        err = np.sqrt(np.sum((T_ans - eqn_sys.T_sol[half_nodes:])**2)/half_nodes)
+        err = np.sqrt(np.sum((T_ans - T_sol[half_nodes:])**2)/half_nodes)
         if self.plotting:
-            is_split = ''
-            if 'split' in file_name:
-                is_split = '_split'
             plt.figure()
             plt.plot(L*(1. + x_star), T_ans, 'o', label='Analytical')
-            plt.plot(grid_man.x_node, eqn_sys.T_sol, '-', label='Numerical')
+            plt.plot(grid_man.x_node, T_sol, '-', label='Numerical')
             plt.ylim([370, 470])
             plt.xlabel(r'Postion ($m$)')
             plt.ylabel(r'Temperature ($K$)')
             plt.legend()
             plt.title('RMSE = {:.2E}'.format(err))
-            plt.savefig('./Figures/trans_end_conv_order_{}{}.png'.format(time_opts['Order'], is_split), bbox_inches='tight')
+            plt.savefig('./Figures/trans_end_conv.png', bbox_inches='tight')
             plt.close()
 
-        return err
+        self.assertTrue(err < 2e-2,'\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
-    def test_trans_ext_conv_bdf1(self):
-        print('\nTesting first-order transient external convection...')
+    def test_trans_ext_conv(self):
+        print('\nTesting transient external convection...')
         # Supply file name
-        file_name = os.getcwd() + '/Inputs/trans_ext_conv_bdf1.yaml'
-        err = self.trans_ext_conv(file_name)
-        self.assertTrue(err < 3e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
+        file_name = os.getcwd() + '/Inputs/trans_ext_conv.yaml'
 
-
-    def trans_ext_conv(self, file_name):
         # Run model
         model = main_fv.lim1tr_model(file_name)
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_sol = data_man.data_dict['Temperature'][-1,:]
 
         my_t = time_opts['Run Time']
         my_mat = mat_man.get_material('A')
@@ -96,8 +87,8 @@ class trans_cond_tests(unittest.TestCase):
         T_ext = model.parser.cap_dict['Boundary']['External']['T']
         C_o = h_ext*bc_man.PA_r/(my_mat.rho*my_mat.cp)
         T_ans = T_ext + (np.mean(time_opts['T Initial']) - T_ext)*np.exp(-1.0*C_o*my_t)
-        err = np.max(np.abs(eqn_sys.T_sol - T_ans))
-        return err
+        err = np.max(np.abs(T_sol - T_ans))
+        self.assertTrue(err < 3e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
     def test_deactivate_bcs(self):
@@ -115,13 +106,14 @@ class trans_cond_tests(unittest.TestCase):
             'Right': flux_bnd}
         model.parser.cap_dict['Boundary'] = bnd_dict
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_sol = data_man.data_dict['Temperature'][-1,:]
 
         dT_rate = 2*10000/(0.01*2000*500)
         T_true = 300 + dT_rate*5
-        print(dT_rate, T_true, eqn_sys.T_sol)
+        print(dT_rate, T_true, T_sol)
 
-        err = abs(T_true - eqn_sys.T_sol[0])
-        self.assertTrue(err < 2e-12, '\tFailed with RMSE {:0.2e}\n'.format(err))
+        err = abs(T_true - T_sol[0])
+        self.assertTrue(err < 5e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
     def test_controlled_bc(self):

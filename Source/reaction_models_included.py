@@ -67,26 +67,41 @@ class simple_short(reaction_model_base.rxn_model):
         self.short_lim = 1e-6
 
 
-    def concentration_function(self, my_v):
+    def concentration_function(self, species_mat):
         conc_func = 1.0
         for reactant in self.reactants:
-            if my_v[self.name_map[reactant]] < self.small_number:
-                conc_func *= 0.0
-            else:
-                conc_func *= my_v[self.name_map[reactant]]/(self.short_lim + my_v[self.name_map[reactant]])
+            conc_func *= species_mat[self.name_map[reactant],:]/(
+                self.short_lim + species_mat[self.name_map[reactant],:])
+            conc_func *= (species_mat[self.name_map[reactant],:] > self.small_number)
+            # if species_mat[self.name_map[reactant],:] < self.small_number:
+            #     conc_func *= 0.0
+            # else:
+            #     conc_func *= species_mat[self.name_map[reactant],:]/(
+            #         self.short_lim + species_mat[self.name_map[reactant],:])
         return conc_func
 
 
-    def concentration_derivative(self, my_v):
-        my_dr_part_col = np.zeros(self.n_species)
+    def concentration_derivative(self, species_mat):
+        # my_dr_part_col = np.zeros(self.n_species)
+        # for reactant in self.reactants:
+        #     dr_dv = self.short_lim/(self.name_map[reactant] + self.short_lim)**2
+        #     for other_reactant in self.reactants:
+        #         if reactant not in other_reactant:
+        #             v_conc = my_v[self.name_map[other_reactant]]
+        #             dr_dv *= v_conc/(self.short_lim + v_conc)
+        #     my_dr_part_col[self.name_map[reactant]] = dr_dv
+        # return my_dr_part_col
+
+        dr_ds_part = np.zeros(species_mat.shape)
         for reactant in self.reactants:
-            dr_dv = self.short_lim/(self.name_map[reactant] + self.short_lim)**2
+            r_slice = species_mat[self.name_map[reactant],:]
+            dr_dv = self.short_lim/(r_slice + self.short_lim)**2
             for other_reactant in self.reactants:
                 if reactant not in other_reactant:
-                    v_conc = my_v[self.name_map[other_reactant]]
+                    v_conc = species_mat[self.name_map[other_reactant],:]
                     dr_dv *= v_conc/(self.short_lim + v_conc)
-            my_dr_part_col[self.name_map[reactant]] = dr_dv
-        return my_dr_part_col
+            dr_ds_part[self.name_map[reactant],:] = dr_dv
+        return dr_ds_part
 
 
 class zcrit(reaction_model_base.rxn_model):
@@ -107,31 +122,49 @@ class zcrit(reaction_model_base.rxn_model):
         self.z_c = (2*6*12.011)/(self.molecular_weights['Li2CO3']*rho*Y_Graphite*BET_C6**0.5)
 
 
-    def concentration_function(self, my_v):
+    def concentration_function(self, species_mat):
         '''Critical thickness anode model
         '''
-        if self.z_c*my_v[self.name_map['Li2CO3']] >= self.tau_crit:
-            crit_fun = np.exp(-self.C_t*self.tau_crit)
-        else:
-            crit_fun = np.exp(-self.C_t*self.z_c*my_v[self.name_map['Li2CO3']])
-        return self.a_e_crit*my_v[self.name_map['C6Li']]*crit_fun
+        # if self.z_c*my_v[self.name_map['Li2CO3']] >= self.tau_crit:
+        #     crit_fun = np.exp(-self.C_t*self.tau_crit)
+        # else:
+        #     crit_fun = np.exp(-self.C_t*self.z_c*my_v[self.name_map['Li2CO3']])
+        # return self.a_e_crit*species_mat[self.name_map['C6Li'],:]*crit_fun
+        tau = self.z_c*species_mat[self.name_map['Li2CO3'],:]
+        tau[tau >= self.tau_crit] = self.tau_crit
+        return self.a_e_crit*species_mat[self.name_map['C6Li'],:]*np.exp(-self.C_t*tau)
 
 
-    def concentration_derivative(self, my_v):
+    def concentration_derivative(self, species_mat):
         '''Derivative of critical thickness anode model
         w.r.t. each species
         '''
-        my_dr_part_col = np.zeros(self.n_species)
+        # my_dr_part_col = np.zeros(self.n_species)
 
-        # Zcrit limiter and derivative of Li2CO3
-        if self.z_c*my_v[self.name_map['Li2CO3']] >= self.tau_crit:
-            crit_fun = np.exp(-self.C_t*self.tau_crit)
-        else:
-            crit_fun = np.exp(-self.C_t*self.z_c*my_v[self.name_map['Li2CO3']])
-            my_dr_part_col[self.name_map['Li2CO3']] = self.a_e_crit*(
-                my_v[self.name_map['C6Li']]*crit_fun*(-self.C_t*self.z_c))
+        # # Zcrit limiter and derivative of Li2CO3
+        # if self.z_c*my_v[self.name_map['Li2CO3']] >= self.tau_crit:
+        #     crit_fun = np.exp(-self.C_t*self.tau_crit)
+        # else:
+        #     crit_fun = np.exp(-self.C_t*self.z_c*my_v[self.name_map['Li2CO3']])
+        #     my_dr_part_col[self.name_map['Li2CO3']] = self.a_e_crit*(
+        #         my_v[self.name_map['C6Li']]*crit_fun*(-self.C_t*self.z_c))
+
+        # # C6Li derivative
+        # my_dr_part_col[self.name_map['C6Li']] = self.a_e_crit*crit_fun
+
+        # return my_dr_part_col
+
+        dr_ds_part = np.zeros(species_mat.shape)
+        tau = self.z_c*species_mat[self.name_map['Li2CO3'],:]
+        tau[tau >= self.tau_crit] = self.tau_crit
+        crit_fun = self.a_e_crit*np.exp(-self.C_t*tau)
+
+        # Li2CO3 derivative
+        dr_dsalt_part = species_mat[self.name_map['Li2CO3'],:]*crit_fun*(-self.C_t*self.z_c)
+        dr_dsalt_part[tau >= self.tau_crit] = 0.0
+        dr_ds_part[self.name_map['Li2CO3'],:] = dr_dsalt_part
 
         # C6Li derivative
-        my_dr_part_col[self.name_map['C6Li']] = self.a_e_crit*crit_fun
+        dr_ds_part[self.name_map['C6Li'],:] = crit_fun
 
-        return my_dr_part_col
+        return dr_ds_part
