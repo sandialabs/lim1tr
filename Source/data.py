@@ -40,7 +40,7 @@ class data_manager:
         num_outputs = self.n_tot + self.data_dict['Interface Temperature'].shape[1]
         if reac_man:
             num_outputs += 2*self.n_tot*(len(self.species_name_list) + 1)
-        max_entries = 200000
+        max_entries = 2000000
         self.max_len = max(10, int(max_entries/num_outputs))
         self.out_num = 0
         self.output_frequency = time_opts['Output Frequency']

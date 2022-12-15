@@ -221,7 +221,9 @@ class trans_cond_tests(unittest.TestCase):
         control_bc = {'Type': 'Temperature Control',
             'T': 300.,
             'T Rate': 5,
-            'T Cutoff': 325}
+            'T Cutoff': 325,
+            'T End': 300.,
+            'h': 0}
         bnd_dict = {'External': {'Type': 'Adiabatic'},
             'Left': control_bc,
             'Right': {'Type': 'Adiabatic'}}
