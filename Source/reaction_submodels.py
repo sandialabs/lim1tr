@@ -14,7 +14,8 @@ import numpy as np
 
 reaction_submodel_dictionary = {
     'Electrolyte Limiter': 'electrolyte_limiter',
-    'Damkohler': 'damkohler_limiter'
+    'Damkohler': 'damkohler_limiter',
+    'Damkohler ri': 'damkohler_limiter_ri'
 }
 
 
@@ -97,9 +98,47 @@ class damkohler_limiter(rxn_submodel):
         return 1.0/(1 + self.AD*np.exp(-self.EDoR/my_v[-1]))
 
 
-    def evaluate_rate_constant_derivative(self, my_v, my_k):
-        return my_k**2*self.evaluate_rate_constant_derivative_part(my_v)
+    def evaluate_rate_constant_derivative_part(self, my_v):
+        Da = self.AD*np.exp(-self.EDoR/my_v[-1])
+        return (-1*self.EDoR/my_v[-1]**2)*Da/(1 + Da)
+
+
+class damkohler_limiter_ri(rxn_submodel):
+    def setup(self):
+        dam_info = self.rxn_info['Damkohler ri']
+        T_ref_d = 25. + 273.15
+        r_o = dam_info['r_o']
+        if 'a_edges' not in self.rxn_info.keys():
+            err_str = 'Edge area not found for Damkohler model.'
+            raise ValueError(err_str)
+        else:
+            a_edges = self.rxn_info['a_edges']
+
+        self.species_name = dam_info['Species']
+        self.sp_ind = self.name_map[self.species_name]
+        sp_o = self.material_info['Initial Mass Fraction'][self.species_name]*self.material_info['rho']
+        self.sp_o_13 = sp_o**(1/3)
+
+        # Combine rate constant and diffusion coefficient to form the Damkohler number
+        # C_D = (r_o - r_i)*r_o/(r_i*a_edges*self.material_info['rho'])
+        A_D_part = dam_info['D']*np.exp(dam_info['E']/(self.rxn_info['R']*T_ref_d))
+        # self.AD = C_D*float(dam_info['A'])/A_D_part
+        self.AD = r_o*float(dam_info['A'])/(a_edges*self.material_info['rho']*A_D_part)
+        self.EDoR = (float(self.rxn_info['E']) - float(dam_info['E']))/float(self.rxn_info['R'])
+
+
+    def evaluate_rate_constant(self, my_v):
+        sp_13 = max(my_v[self.sp_ind],0)**(1/3)
+        return sp_13/(sp_13 + self.AD*np.exp(-self.EDoR/my_v[-1])*(self.sp_o_13 - sp_13))
 
 
     def evaluate_rate_constant_derivative_part(self, my_v):
-        return (-1.*self.EDoR/my_v[-1]**2)*self.AD*np.exp(-self.EDoR/my_v[-1])
+        sp_13 = max(my_v[self.sp_ind],0)**(1/3)
+        Da = self.AD*(self.sp_o_13 - sp_13)*np.exp(-self.EDoR/my_v[-1])
+        return (-1*self.EDoR/my_v[-1]**2)*Da/(sp_13 + Da)
+
+
+    def concentration_derivative(self, my_v):
+        my_dr_part_col = np.zeros(self.n_species)
+        # Unimplemented
+        return my_dr_part_col

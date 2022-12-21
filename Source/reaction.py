@@ -84,6 +84,7 @@ class reaction_manager:
         self.n_species = len(spec_dict['Names'])
         self.species_name_list = spec_dict['Names']
         molecular_weights = dict(zip(spec_dict['Names'], spec_dict['Molecular Weights']))
+        initail_mass_fraction = dict(zip(spec_dict['Names'], spec_dict['Initial Mass Fraction']))
 
         for i in range(self.n_species):
             name = self.species_name_list[i]
@@ -99,6 +100,7 @@ class reaction_manager:
         self.material_info = {}
         self.material_info['Names'] = self.species_name_list
         self.material_info['Molecular Weights'] = molecular_weights
+        self.material_info['Initial Mass Fraction'] = initail_mass_fraction
         self.material_info['rho'] = self.rho
         self.material_info['cp'] = self.cp
 
