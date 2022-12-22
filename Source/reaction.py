@@ -54,15 +54,6 @@ class reaction_manager:
         # Small constant
         self.small_number = 1.0e-15
 
-        # Timing arrays
-        self.solve_ode_time = 0
-        self.update_dofs_time = 0
-
-        # # Solver params
-        # self.dt0 = 1e-6
-        # self.atol = 1e-6
-        # self.rtol = 1e-7
-
 
     def load_species(self, spec_dict, mat_man):
         # Input error checking
@@ -105,17 +96,12 @@ class reaction_manager:
 
         # Get number of cells and set up node key
         self.n_cells = 0
-        # self.cell_node_key = np.zeros(self.n_tot, dtype=int)
         self.first_node_list = self.first_node_list + [self.n_tot]
         self.cells = []
         for k in range(len(mat_man.layer_names)):
             if self.mat_name == mat_man.layer_names[k]:
                 self.n_cells += 1
-                # self.cell_node_key[self.first_node_list[k]:self.first_node_list[k+1]] = self.n_cells
                 self.cells.append(reaction_layer.reaction_layer(self.first_node_list[k:k+2], self.n_tot))
-
-        # Set up domain where reactions are present
-        # self.active_nodes = np.argwhere(self.mat_nodes == self.mat_name).flatten()
 
 
     def load_reactions(self, rxn_dict):
@@ -189,95 +175,3 @@ class reaction_manager:
             R_jac[:,:,b1:b2] = self.cells[i].evaluate_jacobian(t, state)
 
         return R_jac
-
-
-
-
-    # def solve_ode_all_nodes(self, t_arr, T_in, dt0=1e-6, atol=1e-6, rtol=1e-7):
-    #     '''Solve the system of ODEs at each node
-    #     This is the main function called from the transient loop
-    #     '''
-    #     T_out = np.copy(T_in)
-
-    #     # Set ODE solver inputs
-    #     self.t_arr = t_arr
-    #     self.T_in = T_in
-    #     self.dt0 = dt0
-    #     self.atol = atol
-    #     self.rtol = rtol
-
-    #     st_time = time.time()
-    #     ind_list = list(range(self.active_nodes.shape[0]))
-    #     sol_err_list = self.solve_nodes_wrapper(ind_list)
-    #     self.solve_ode_time = time.time() - st_time
-
-    #     st_time = time.time()
-    #     err_list = []
-    #     for k in range(len(ind_list)):
-    #         my_sol = sol_err_list[k][0]
-    #         act_ind = ind_list[k]
-    #         self.update_node(act_ind, my_sol)
-
-    #         # Save temperature
-    #         T_out[self.active_nodes[act_ind]] = np.copy(my_sol[-1,-1])
-
-    #         err_list.append((self.active_nodes[act_ind], sol_err_list[k][1]))
-    #     self.update_dofs_time = time.time() - st_time
-
-    #     return T_out, err_list
-
-
-    # def solve_nodes_wrapper(self, my_active_node_inds):
-    #     sol_err_list = []
-
-    #     # Loop over all active nodes
-    #     for act_ind in my_active_node_inds:
-    #         # Get node index
-    #         i = self.active_nodes[act_ind]
-
-    #         # Get reaction system index
-    #         sys_ind = self.node_to_system_map[i]
-    #         if sys_ind < 0:
-    #             err_str = 'No reaction system specified on node {}.'.format(i)
-    #             raise ValueError(err_str)
-
-    #         # Create input array
-    #         v_in = np.zeros(self.n_species + 1)
-
-    #         # Set species starting values
-    #         for j in range(len(self.species_name_list)):
-    #             v_in[j] = self.species_density[self.species_name_list[j]][i]
-
-    #         # Set temperature starting value
-    #         v_in[-1] = self.T_in[i]
-
-    #         # Solve system
-    #         my_sol, my_status = self.reaction_systems[sys_ind].solve_ode_node(
-    #             self.t_arr, v_in, dt0=self.dt0, atol=self.atol, rtol=self.rtol)
-
-    #         sol_err_list.append((my_sol, my_status))
-
-    #     return sol_err_list
-
-
-    # def update_node(self, act_ind, my_sol):
-    #     ''' Update densities, rates, temperature, check complete
-    #     '''
-    #     # Get node index
-    #     i = self.active_nodes[act_ind]
-
-    #     # Get reaction system index
-    #     sys_ind = self.node_to_system_map[i]
-
-    #     # Update densities
-    #     for j in range(len(self.species_name_list)):
-    #         self.species_density[self.species_name_list[j]][i] = np.copy(my_sol[-1,j])
-
-    #     # Get rates
-    #     rate_arr = self.reaction_systems[sys_ind].get_rates(my_sol[-1,:])
-
-    #     # Update rates
-    #     for j in range(len(self.species_name_list)):
-    #         self.species_rate[self.species_name_list[j]][i] = np.copy(rate_arr[j])
-    #     self.temperature_rate[i] = np.copy(rate_arr[-1])
-    #     self.heat_release_rate[i] = np.copy(rate_arr[-1])*self.rho_cp

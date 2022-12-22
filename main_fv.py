@@ -22,7 +22,6 @@ import solvers
 import input_parser
 import conduction
 import equation_sys
-import time_integrator
 
 
 class lim1tr_model:

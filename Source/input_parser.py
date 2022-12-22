@@ -205,10 +205,6 @@ class input_parser:
         if 'Print Progress' not in time_dict.keys():
             time_dict['Print Progress'] = 1
 
-        # Set print every n steps if not provided
-        if 'Print Every N Steps' not in time_dict.keys():
-            time_dict['Print Every N Steps'] = 10
-
         # Set initial temperature
         if type(time_dict['T Initial']) is list:
             if len(time_dict['T Initial']) != grid_man.n_layers:

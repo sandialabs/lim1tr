@@ -47,7 +47,6 @@ class reaction_layer:
 
 
     def slice_state(self, state):
-        # use a reshape!
         # Slice state
         t_st = time.time()
         T_arr = state[self.bounds[0]:self.bounds[1]]

@@ -68,10 +68,9 @@ def transient_solve(eqn_sys, verbose=True):
         step_size = PIController(target_error=eqn_sys.target_error)
 
     t_st = time.time()
-    t, q = odesolve(eqn_sys.right_hand_side,
+    q = odesolve(eqn_sys.right_hand_side,
                     eqn_sys.initial_state,
-                    stop_at_time=eqn_sys.end_time,
-                    save_each_step=True,
+                    output_times=eqn_sys.t,
                     linear_setup=eqn_sys.setup_superlu,
                     linear_solve=eqn_sys.solve_superlu,
                     norm_weighting=eqn_sys.norm_weighting,
@@ -82,7 +81,6 @@ def transient_solve(eqn_sys, verbose=True):
                     show_solver_stats_in_situ=True)
     solve_time = time.time() - t_st
 
-    # eqn_sys.T_sol = q[-1,:]
     print(f'Total Solve Time: {solve_time:0.3f} (s)')
     print(f'RHS Cond Time: {eqn_sys.time_conduction:0.3f} (s)')
     print(f'\tRHS Cond Apply: {eqn_sys.cond_apply_time:0.3f} (s)')
@@ -103,21 +101,23 @@ def transient_solve(eqn_sys, verbose=True):
     print(f'\tSetup Calls: {eqn_sys.setup_count}')
     print(f'\tSolve Calls: {eqn_sys.solve_count}')
 
-    return t, q
+    rxns = eqn_sys.reac_man.model_list
+    for i in [1,2]:
+        print(f'RXN {i}:')
+        for j in range(len(rxns[i].my_funcs)):
+            print(rxns[i].my_funcs[j])
+        print(f'\tCon: ', rxns[i].con_time, np.sum(rxns[i].con_time))
+        print(f'\tdCon: ', rxns[i].con_d_time, np.sum(rxns[i].con_d_time))
+        print(f'\tRate: ', rxns[i].rate_time, np.sum(rxns[i].rate_time))
+        print(f'\tdRate: ', rxns[i].rate_d_time, np.sum(rxns[i].rate_d_time))
+        print(f'\tCon Ops: ', rxns[i].con_ops_time)
 
+    for j in range(len(eqn_sys.reac_man.cells)):
+        rxn_sys = eqn_sys.reac_man.cells[j].reaction_system
+        print(f'RXN SYS {j}:')
+        print(f'\tCon: ', rxn_sys.con_time, np.sum(rxn_sys.con_time))
+        print(f'\tdCon: ', rxn_sys.con_d_time, np.sum(rxn_sys.con_d_time))
+        print(f'\tRate: ', rxn_sys.rate_time, np.sum(rxn_sys.rate_time))
+        print(f'\tdRate: ', rxn_sys.rate_d_time, np.sum(rxn_sys.rate_d_time))
 
-# t, q = odesolve(self.right_hand_side,
-#                 t_int.T_star,
-#                 stop_at_time=t_int.end_time,
-#                 save_each_step=True,
-#                 step_size=t_int.dt,
-#                 method=RK4ClassicalS4P4())
-# t, q = odesolve(self.right_hand_side,
-#                 self.T_init,
-#                 stop_at_time=t_int.end_time,
-#                 save_each_step=True,
-#                 linear_setup=self.setup_superlu,
-#                 linear_solve=self.solve_superlu,
-#                 step_size=t_int.dt,
-#                 verbose=True,
-#                 method=BackwardEulerS1P1Q1(SimpleNewtonSolver()))
+    return eqn_sys.t, q

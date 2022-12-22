@@ -65,15 +65,10 @@ class electrolyte_limiter(rxn_submodel):
 
 
     def concentration_function(self, species_mat):
-        # rho_sp = my_v[self.sp_ind]
-        # return rho_sp/(self.sp_50 + rho_sp)
         return species_mat[self.sp_ind,:]/(self.sp_50 + species_mat[self.sp_ind,:])
 
 
     def concentration_derivative(self, species_mat):
-        # my_dr_part_col = np.zeros(self.n_species)
-        # my_dr_part_col[self.sp_ind] = self.sp_50/(self.sp_50 + my_v[self.sp_ind])**2
-        # return my_dr_part_col
         dr_ds_part = np.zeros(species_mat.shape)
         dr_ds_part[self.sp_ind,:] = self.sp_50/(self.sp_50 + species_mat[self.sp_ind,:])**2
         return dr_ds_part

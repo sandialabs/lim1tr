@@ -11,6 +11,7 @@
 from __future__ import division
 import numpy as np
 import reaction_models
+import time
 
 
 def rxn_model_factory(rxn_info, material_info):
@@ -60,58 +61,67 @@ class model_chain:
         self.n_species = self.my_funcs[0].n_species
         self.H_rxn = self.my_funcs[0].H_rxn
 
+        # Timers
+        self.con_time = np.zeros(len(self.my_funcs))
+        self.con_d_time = np.zeros(len(self.my_funcs))
+        self.rate_time = np.zeros(len(self.my_funcs))
+        self.rate_d_time = np.zeros(len(self.my_funcs))
+        self.con_ops_time = 0
+
 
     def concentration_function(self, species_mat):
         conc_func = 1.0
+        i = 0
         for func in self.my_funcs:
+            t_st = time.time()
             conc_func *= func.concentration_function(species_mat)
+            self.con_time[i] += time.time() - t_st
+            i += 1
         return conc_func
 
 
     def concentration_derivative(self, species_mat):
-        # my_dr_part_col = np.zeros(self.n_species)
-        # conc_funcs = np.zeros(self.n_funs)
-        # conc_ders = np.zeros([self.n_funs, self.n_species])
-        # for i in range(self.n_funs):
-        #     conc_funcs[i] = self.my_funcs[i].concentration_function(my_v)
-        #     conc_ders[i,:] = self.my_funcs[i].concentration_derivative(my_v)
-
-        # conc_prods = np.zeros(self.n_funs)
-        # for i in range(self.n_funs):
-        #     conc_prods[i] = np.prod(np.delete(conc_funcs, i))
-
-        # for j in range(self.n_species):
-        #     my_dr_part_col[j] = np.sum(conc_ders[:,j]*conc_prods)
-
-        # return my_dr_part_col
-
         dr_ds_part = np.zeros(species_mat.shape)
 
         conc_funcs = np.zeros([self.n_funs, species_mat.shape[1]])
         conc_ders = np.zeros([self.n_funs, self.n_species, species_mat.shape[1]])
         for i in range(self.n_funs):
+            t_st = time.time()
             conc_funcs[i,:] = self.my_funcs[i].concentration_function(species_mat)
+            self.con_time[i] += time.time() - t_st
+            t_st = time.time()
             conc_ders[i,:,:] = self.my_funcs[i].concentration_derivative(species_mat)
+            self.con_d_time[i] += time.time() - t_st
 
+        t_st = time.time()
         conc_prods = np.zeros([self.n_funs, species_mat.shape[1]])
         for i in range(self.n_funs):
             conc_prods[i,:] = np.prod(np.delete(conc_funcs, i, axis=0), axis=0)
 
         for j in range(self.n_species):
             dr_ds_part[j,:] = np.sum(conc_ders[:,j,:]*conc_prods, axis=0)
+        self.con_ops_time += time.time() - t_st
 
         return dr_ds_part
 
 
     def evaluate_rate_constant(self, T_arr):
         my_k = 1.0
+        i = 0
         for func in self.my_funcs:
+            t_st = time.time()
             my_k *= func.evaluate_rate_constant(T_arr)
+            self.rate_time[i] += time.time() - t_st
+            i += 1
         return my_k
 
 
     def evaluate_rate_constant_derivative(self, T_arr, my_k):
         my_k_dT = 0.0
+        i = 0
         for func in self.my_funcs:
+            t_st = time.time()
             my_k_dT += func.evaluate_rate_constant_derivative_part(T_arr)
+            self.rate_d_time[i] += time.time() - t_st
+            i += 1
         return my_k*my_k_dT

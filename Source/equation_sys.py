@@ -30,8 +30,12 @@ class eqn_sys:
         self.end_time = time_opts['Run Time']
         self.fixed_step = time_opts['Fixed Step']
         self.dt = time_opts['dt']
-        self.print_progress = time_opts['Print Progress']
-        self.print_every = time_opts['Print Every N Steps']
+        if self.fixed_step:
+            self.t = np.arange(0, self.end_time, self.dt)
+        else:
+            dt_f = 1.0/time_opts['Output Frequency']
+            self.t = np.arange(0, self.end_time, dt_f)
+        self.t = np.concatenate((self.t, np.full(1,self.end_time)))
 
         # Diffusion and material operators
         self.mat_man = mat_man
