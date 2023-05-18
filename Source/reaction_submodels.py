@@ -117,6 +117,7 @@ class damkohler_limiter_ri(rxn_submodel):
         self.sp_ind = self.name_map[self.species_name]
         sp_o = self.material_info['Initial Mass Fraction'][self.species_name]*self.material_info['rho']
         self.sp_o_13 = sp_o**(1/3)
+        self.sp_13 = sp_o**(1/3)
 
         # Combine rate constant and diffusion coefficient to form the Damkohler number
         A_D_part = dam_info['D']*np.exp(dam_info['E']/(self.rxn_info['R']*T_ref_d))
@@ -124,18 +125,21 @@ class damkohler_limiter_ri(rxn_submodel):
         self.EDoR = (float(self.rxn_info['E']) - float(dam_info['E']))/float(self.rxn_info['R'])
 
 
-    def evaluate_rate_constant(self, my_v):
-        sp_13 = max(my_v[self.sp_ind],0)**(1/3)
-        return sp_13/(sp_13 + self.AD*np.exp(-self.EDoR/my_v[-1])*(self.sp_o_13 - sp_13))
+    def concentration_function(self, species_mat):
+        self.sp_13 = np.maximum(species_mat[self.sp_ind,:],0)**(1/3)
+        return np.ones(species_mat.shape[1])
 
 
-    def evaluate_rate_constant_derivative_part(self, my_v):
-        sp_13 = max(my_v[self.sp_ind],0)**(1/3)
-        Da = self.AD*(self.sp_o_13 - sp_13)*np.exp(-self.EDoR/my_v[-1])
-        return (-1*self.EDoR/my_v[-1]**2)*Da/(sp_13 + Da)
+    def evaluate_rate_constant(self, T_arr):
+        return self.sp_13/(self.sp_13 + self.AD*np.exp(-self.EDoR/T_arr)*(self.sp_o_13 - self.sp_13))
 
 
-    def concentration_derivative(self, my_v):
-        my_dr_part_col = np.zeros(self.n_species)
+    def evaluate_rate_constant_derivative_part(self, T_arr):
+        Da = self.AD*(self.sp_o_13 - self.sp_13)*np.exp(-self.EDoR/T_arr)
+        return (-1*self.EDoR/T_arr**2)*Da/(self.sp_13 + Da)
+
+
+    def concentration_derivative(self, species_mat):
         # Unimplemented
-        return my_dr_part_col
+        dr_ds_part = np.zeros(species_mat.shape)
+        return dr_ds_part

@@ -75,49 +75,14 @@ def transient_solve(eqn_sys, verbose=True):
                     linear_solve=eqn_sys.solve_superlu,
                     norm_weighting=eqn_sys.norm_weighting,
                     step_size=step_size,
-                    linear_setup_rate=20,
+                    linear_setup_rate=eqn_sys.linear_setup_rate,
                     verbose=verbose,
                     log_rate=100,
                     show_solver_stats_in_situ=True)
     solve_time = time.time() - t_st
 
-    print(f'Total Solve Time: {solve_time:0.3f} (s)')
-    print(f'RHS Cond Time: {eqn_sys.time_conduction:0.3f} (s)')
-    print(f'\tRHS Cond Apply: {eqn_sys.cond_apply_time:0.3f} (s)')
-    print(f'\tRHS BC Apply: {eqn_sys.bc_time:0.3f} (s)')
-    print(f'\tRHS Lin Assemble: {eqn_sys.cond_F_time:0.3f} (s)')
-    print(f'\tRHS NL BC Apply: {eqn_sys.nlbc_time:0.3f} (s)')
-    if eqn_sys.reac_man:
-        print(f'RHS RXN Time: {eqn_sys.time_reaction:0.3f} (s)')
-    print(f'Jac Cond Time: {eqn_sys.time_conduction_jac:0.3f} (s)')
-    if eqn_sys.reac_man:
-        print(f'Jac RXN Time: {eqn_sys.time_reaction_jac:0.3f} (s)')
-        print(f'Slice Time: {eqn_sys.reac_man.cells[0].slice_time:0.3f} (s)')
-    print(f'Factor SuperLU Time: {eqn_sys.factor_superlu_time:0.3f} (s)')
-    print(f'Solve SuperLU Time: {eqn_sys.solve_superlu_time:0.3f} (s)')
-    print(f'Clean Time: {eqn_sys.clean_time:0.3f} (s)')
-    print('\nCounts:')
-    print(f'\tRHS Calls: {eqn_sys.rhs_count}')
-    print(f'\tSetup Calls: {eqn_sys.setup_count}')
-    print(f'\tSolve Calls: {eqn_sys.solve_count}')
-
-    rxns = eqn_sys.reac_man.model_list
-    for i in [1,2]:
-        print(f'RXN {i}:')
-        for j in range(len(rxns[i].my_funcs)):
-            print(rxns[i].my_funcs[j])
-        print(f'\tCon: ', rxns[i].con_time, np.sum(rxns[i].con_time))
-        print(f'\tdCon: ', rxns[i].con_d_time, np.sum(rxns[i].con_d_time))
-        print(f'\tRate: ', rxns[i].rate_time, np.sum(rxns[i].rate_time))
-        print(f'\tdRate: ', rxns[i].rate_d_time, np.sum(rxns[i].rate_d_time))
-        print(f'\tCon Ops: ', rxns[i].con_ops_time)
-
-    for j in range(len(eqn_sys.reac_man.cells)):
-        rxn_sys = eqn_sys.reac_man.cells[j].reaction_system
-        print(f'RXN SYS {j}:')
-        print(f'\tCon: ', rxn_sys.con_time, np.sum(rxn_sys.con_time))
-        print(f'\tdCon: ', rxn_sys.con_d_time, np.sum(rxn_sys.con_d_time))
-        print(f'\tRate: ', rxn_sys.rate_time, np.sum(rxn_sys.rate_time))
-        print(f'\tdRate: ', rxn_sys.rate_d_time, np.sum(rxn_sys.rate_d_time))
+    # LIM1TR timing statistics
+    eqn_sys.print_statistics()
+    print(f'Total Solve Time (s): {solve_time:0.3f}')
 
     return eqn_sys.t, q

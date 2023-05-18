@@ -11,7 +11,6 @@
 from __future__ import division
 import numpy as np
 import reaction_model_base
-import time
 
 
 rxn_model_dictionary_included = {
@@ -114,8 +113,14 @@ class zcrit(reaction_model_base.rxn_model):
         '''
         tau = self.z_c*species_mat[self.name_map['Li2CO3'],:]
         tau[tau >= self.tau_crit] = self.tau_crit
-        return self.a_e_crit*species_mat[self.name_map['C6Li'],:]*np.exp(-self.C_t*tau)
-
+        con_fun = 0
+        try:
+            con_fun = self.a_e_crit*species_mat[self.name_map['C6Li'],:]*np.exp(-self.C_t*tau)
+            con_fun = np.asarray_chkfinite(con_fun)
+        except ValueError:
+            print(species_mat[self.name_map['Li2CO3'],:])
+            print(species_mat[self.name_map['C6Li'],:])
+        return con_fun
 
     def concentration_derivative(self, species_mat):
         '''Derivative of critical thickness anode model

@@ -29,9 +29,11 @@ class end_bc(bc_base):
         self.n_tot = dx_arr.shape[0]
         if my_end == 'left':
             self.n_ind = 0
+            self.n_opp = self.n_tot - 1
             self.k_ind = 0
         elif my_end == 'right':
             self.n_ind = self.n_tot - 1
+            self.n_opp = 0
             self.k_ind = self.n_tot - 2
         else:
             err_str = 'Unrecognized boundary type {}.'.format(my_end)
@@ -51,7 +53,7 @@ class end_dirichlet(end_bc):
 
 
 class end_temperature_control(end_bc):
-    def set_params(self, T_i, T_rate, T_cutoff, T_end, h_end):
+    def set_params(self, T_i, T_rate, T_cutoff, T_location, T_end, h_end, mint_list):
         self.T_con = T_i
         self.T_i = T_i
         self.T_rate = T_rate
@@ -61,10 +63,41 @@ class end_temperature_control(end_bc):
         self.h_end = h_end
         self.T_end = T_i
 
+        # Logic for the control TC location
+        if T_location == 0:
+            if 'left' in self.name:
+                self.cutoff_function = self.end_cutoff
+            else:
+                self.cutoff_function = self.opposite_cutoff
+        elif T_location == len(mint_list):
+            if 'right' in self.name:
+                self.cutoff_function = self.end_cutoff
+            else:
+                self.cutoff_function = self.opposite_cutoff
+        else:
+            self.cutoff_function = self.interface_cutoff
+            self.l_ind = mint_list[T_location - 1]
+            self.r_ind = self.l_ind + 1
 
-    def update_temperature(self, tot_time):
+
+    def update_temperature(self, T, tot_time):
         self.T_con = self.T_i + self.T_rate*tot_time
+        self.cutoff_function(T)
+
+
+    def end_cutoff(self, T):
         if self.T_con >= self.T_cutoff:
+            self.heater_on = False
+
+
+    def opposite_cutoff(self, T):
+        if self.T[self.n_opp] >= self.T_cutoff:
+            self.heater_on = False
+
+
+    def interface_cutoff(self, T):
+        T_int = 0.5*(T[self.l_ind] + T[self.r_ind])
+        if T_int >= self.T_cutoff:
             self.heater_on = False
 
 

@@ -88,7 +88,7 @@ class build_tests(unittest.TestCase):
         bc_man.setup(bnd_dict)
 
         # Apply boundary terms
-        bc_man.apply(eqn_sys, mat_man, 0)
+        bc_man.apply(eqn_sys, mat_man, 0, 0)
 
         phi_left = 2*k_a/dx_a
         c_left = h_left*phi_left/(h_left + phi_left)

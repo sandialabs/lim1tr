@@ -190,6 +190,12 @@ class input_parser:
             time_dict['Target Error'] = 1e-7
         else:
             time_dict['Target Error'] = float(time_dict['Target Error'])
+
+        # Set Jacobian lag if not provided
+        if 'Maximum Steps Per Jacobian' not in time_dict.keys():
+            time_dict['Maximum Steps Per Jacobian'] = 10
+        else:
+            time_dict['Maximum Steps Per Jacobian'] = float(time_dict['Maximum Steps Per Jacobian'])
         
         # Set accuracy order
         if 'Steady' in time_dict['Solution Mode']:

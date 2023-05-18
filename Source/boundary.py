@@ -25,6 +25,7 @@ class bc_manager:
         self.dx_arr = grid_man.dx_arr
         self.n_tot = grid_man.n_tot
         self.PA_r = grid_man.PA_r  # Perimeter to cross-sectional area ratio
+        self.mint_list = grid_man.mint_list
         self.boundaries = []
         self.nonlinear_boundaries = []
         self.timed_boundaries = []
@@ -50,7 +51,7 @@ class bc_manager:
             elif end_params['Type'] == 'temperature control':
                 end_bc = boundary_types.end_temperature_control(self.dx_arr, my_end)
                 end_bc.set_params(end_params['T'], end_params['T Rate'], end_params['T Cutoff'],
-                    end_params['T End'], end_params['h'])
+                    end_params['T Location'], end_params['T End'], end_params['h'], self.mint_list)
             elif end_params['Type'] == 'convection':
                 end_bc = boundary_types.end_convection(self.dx_arr, my_end)
                 end_bc.set_params(end_params['h'], end_params['T'])
@@ -111,9 +112,9 @@ class bc_manager:
             self.arc_boundaries.append(bc)
 
 
-    def apply(self, eqn_sys, mat_man, tot_time):
+    def apply(self, eqn_sys, mat_man, T, tot_time):
         for control_bc in self.controlled_boundaries:
-            control_bc.update_temperature(tot_time)
+            control_bc.update_temperature(T, tot_time)
         for timed_bc in self.timed_boundaries:
             timed_bc.set_time(tot_time)
             timed_bc.apply(eqn_sys, mat_man)

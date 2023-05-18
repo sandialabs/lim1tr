@@ -12,7 +12,6 @@ from __future__ import division
 import numpy as np
 from scipy.integrate import solve_ivp
 import reaction_models
-import time
 
 
 class reaction_system:
@@ -40,11 +39,6 @@ class reaction_system:
             aug_row = aug_row*0.
         self.aug_mat = np.concatenate((aug_row, self.frac_mat), axis=0)
 
-        self.con_time = np.zeros(self.n_rxn)
-        self.con_d_time = np.zeros(self.n_rxn)
-        self.rate_time = np.zeros(self.n_rxn)
-        self.rate_d_time = np.zeros(self.n_rxn)
-
 
     def evaluate_ode(self, t, T_arr, species_mat):
         '''This formulation evaluates the ODEs for temperature and
@@ -53,11 +47,11 @@ class reaction_system:
         For DSC, dT/dt is fixed, so we use the linear temperature ODE
         that does not require division by the mass matrix
         '''
-        # Calculate rate constant (n_rxn, n_nodes)
-        my_k = self.evaluate_rate_constant(T_arr)
-
         # Calculate concentration function (n_rxn, n_nodes)
         my_conc = self.evaluate_concentration_functions(species_mat)
+
+        # Calculate rate constant (n_rxn, n_nodes)
+        my_k = self.evaluate_rate_constant(T_arr)
 
         # Reaction rate (n_rxn, n_nodes)
         my_r = my_k*my_conc
@@ -72,11 +66,11 @@ class reaction_system:
 
 
     def evaluate_jacobian(self, t, T_arr, species_mat):
-        # Calculate rate constant (n_rxn, n_nodes)
-        my_k = self.evaluate_rate_constant(T_arr)
-
         # Calculate concentration function for each rxn (n_rxn, n_nodes)
         my_conc = self.evaluate_concentration_functions(species_mat)
+
+        # Calculate rate constant (n_rxn, n_nodes)
+        my_k = self.evaluate_rate_constant(T_arr)
 
         # Derivative of reactions w.r.t all variables (n_species+1, n_rxn, n_nodes)
         dr_dv = np.zeros([self.n_species+1, self.n_rxn, T_arr.shape[0]])
@@ -96,18 +90,14 @@ class reaction_system:
     def evaluate_rate_constant(self, T_arr):
         my_k = np.zeros([self.n_rxn, T_arr.shape[0]])
         for ii in range(self.n_rxn):
-            t_st = time.time()
             my_k[ii,:] = self.model_list[ii].evaluate_rate_constant(T_arr)
-            self.rate_time[ii] += time.time() - t_st
         return my_k
 
 
     def evaluate_rate_constant_derivative(self, T_arr, my_k):
         my_k_dT = np.zeros(my_k.shape)
         for ii in range(self.n_rxn):
-            t_st = time.time()
             my_k_dT[ii,:] = self.model_list[ii].evaluate_rate_constant_derivative(T_arr, my_k[ii])
-            self.rate_d_time[ii] += time.time() - t_st
         return my_k_dT
 
 
@@ -116,9 +106,7 @@ class reaction_system:
         the concentration function'''
         my_conc = np.zeros([self.n_rxn, species_mat.shape[1]])
         for ii in range(self.n_rxn):
-            t_st = time.time()
             my_conc[ii,:] = self.model_list[ii].concentration_function(species_mat)
-            self.con_time[ii] += time.time() - t_st
         return my_conc
 
 
@@ -128,9 +116,7 @@ class reaction_system:
         function w.r.t. each species'''
         dr_ds_part = np.zeros([species_mat.shape[0], self.n_rxn, species_mat.shape[1]])
         for ii in range(self.n_rxn):
-            t_st = time.time()
             dr_ds_part[:,ii,:] = self.model_list[ii].concentration_derivative(species_mat)
-            self.con_d_time[ii] += time.time() - t_st
         return dr_ds_part
 
 

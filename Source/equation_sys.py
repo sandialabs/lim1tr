@@ -27,6 +27,7 @@ class eqn_sys:
         self.initial_state = time_opts['T Initial']
         self.norm_weighting = np.full(self.n_tot, 1e-3)
         self.target_error = time_opts['Target Error']
+        self.linear_setup_rate = time_opts['Maximum Steps Per Jacobian']
         self.end_time = time_opts['Run Time']
         self.fixed_step = time_opts['Fixed Step']
         self.dt = time_opts['dt']
@@ -87,10 +88,7 @@ class eqn_sys:
         self.bc_time = 0
         self.nlbc_time = 0
         self.clean_time = 0
-        self.time_ode = 0
-        self.time_ode_solve = 0
-        self.time_ode_update = 0
-        self.time_data = 0
+
         self.rhs_count = 0
         self.setup_count = 0
         self.solve_count = 0
@@ -183,12 +181,12 @@ class eqn_sys:
 
         # Apply linear boundary terms
         tbc_st = time.time()
-        self.bc_man.apply(self, self.mat_man, t)
+        T_arr = state[:self.n_tot]
+        self.bc_man.apply(self, self.mat_man, T_arr, t)
         self.bc_time += time.time() - tbc_st
 
         # Compute linear contributions to F
         tl_st = time.time()
-        T_arr = state[:self.n_tot]
         self.F = self.LHS_c*T_arr - self.RHS
         self.F[:-1] += self.LHS_u[:-1]*T_arr[1:]
         self.F[1:] += self.LHS_l[1:]*T_arr[:-1]
@@ -229,7 +227,7 @@ class eqn_sys:
         self.cond_man.apply(self, self.mat_man)
 
         # Apply linear boundary terms
-        self.bc_man.apply(self, self.mat_man, t)
+        self.bc_man.apply(self, self.mat_man, state[:self.n_tot], t)
 
         # Non-linear BCs
         self.bc_man.apply_nonlinear(self, self.mat_man, state[:self.n_tot])
@@ -374,4 +372,36 @@ class eqn_sys:
         self.cond_man.apply(self, self.mat_man)
 
         # Apply boundary terms
-        self.bc_man.apply(self, self.mat_man, 0)
+        self.bc_man.apply(self, self.mat_man, self.T_sol, 0)
+
+
+    def print_statistics(self):
+        print('LIM1TR Stastics:')
+        print('  RHS Assembly')
+        print(f'- Conduction (s)    : {self.time_conduction:0.3f}')
+        print(f'  - Apply (s)       : {self.cond_apply_time:0.3f}')
+        print(f'  - BC Apply (s)    : {self.bc_time:0.3f}')
+        print(f'  - Linear Parts (s): {self.cond_F_time:0.3f}')
+        print(f'  - NL Parts (s)    : {self.nlbc_time:0.3f}')
+        if self.reac_man:
+            print(f'- Reaction (s)      : {self.time_reaction:0.3f}')
+        print(f'- Calls             : {self.rhs_count}')
+
+        print('\n  Jacobian Assembly')
+        print(f'- Conduction (s)    : {self.time_conduction_jac:0.3f}')
+        if self.reac_man:
+            print(f'- Reaction (s)      : {self.time_reaction_jac:0.3f}')
+        print(f'- Factor SuperLU (s): {self.factor_superlu_time:0.3f}')
+        print(f'- Calls: {self.setup_count}')
+
+        print(f'\n  Solve SuperLU')
+        print(f'- Time (s): {self.solve_superlu_time:0.3f}')
+        print(f'- Calls   : {self.solve_count}')
+
+        print('\n  Other')
+        if self.reac_man:
+            slice_time = 0.0
+            for ii in range(self.reac_man.n_cells):
+                slice_time += self.reac_man.cells[ii].slice_time
+            print(f'- Slice (s): {slice_time:0.3f}')
+        print(f'- Clean (s): {self.clean_time:0.3f}\n')
