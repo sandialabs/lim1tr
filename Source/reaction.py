@@ -40,16 +40,6 @@ class reaction_manager:
             self.dsc_rate = other_opts['DSC Rate']
         self.dsc_info = (self.dsc_mode, self.dsc_rate)
 
-        # Check to see if running in reaction only mode
-        self.rxn_only = False
-        if 'Reaction Only' in other_opts.keys():
-            if other_opts['Reaction Only']:
-                self.rxn_only = True
-                if grid_man.n_tot != 1:
-                    err_str = 'Multiple control volumes found in reaction only simulation.\n'
-                    err_str += 'Check that dx is equal to the domain length.'
-                    raise ValueError(err_str)
-
         # Small constant
         self.small_number = 1.0e-15
 

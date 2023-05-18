@@ -66,6 +66,5 @@ Time:
 Other:
     Y Dimension: 0.003          # m
     Z Dimension: 0.003          # m
-    Reaction Only: 1            # Only solve reactions
     DSC Mode: 1                 # Use the DSC model for temperature evolution
     DSC Rate: 0.166666667       # DSC heating rate in K/s

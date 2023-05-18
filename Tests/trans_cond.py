@@ -105,12 +105,13 @@ class trans_cond_tests(unittest.TestCase):
             'Left': flux_bnd,
             'Right': flux_bnd}
         model.parser.cap_dict['Boundary'] = bnd_dict
+        model.parser.cap_dict['Materials']['A']['k'] = 500.
+        model.parser.cap_dict['Time']['dt'] = 0.01
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
         T_sol = data_man.data_dict['Temperature'][-1,:]
 
         dT_rate = 2*10000/(0.01*2000*500)
         T_true = 300 + dT_rate*5
-        print(dT_rate, T_true, T_sol)
 
         err = abs(T_true - T_sol[0])
         self.assertTrue(err < 5e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
@@ -126,6 +127,7 @@ class trans_cond_tests(unittest.TestCase):
         control_bc = {'Type': 'Temperature Control',
             'T': 300.,
             'T Rate': 5,
+            'T Location': 0,
             'T Cutoff': 325,
             'T End': 300.,
             'h': 0}
@@ -133,11 +135,12 @@ class trans_cond_tests(unittest.TestCase):
             'Left': control_bc,
             'Right': {'Type': 'Adiabatic'}}
         model.parser.cap_dict['Boundary'] = bnd_dict
-        model.parser.cap_dict['Materials']['A']['k'] = 50.
+        model.parser.cap_dict['Materials']['A']['k'] = 500.
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
-        T_true = 321.01094462
+        T_true = 324.5
+        T_sol = data_man.data_dict['Temperature'][-1,:]
 
-        err = abs(T_true - eqn_sys.T_sol[0])
+        err = abs(T_true - T_sol[0])
         self.assertTrue(err < 1e-8, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 

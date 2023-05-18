@@ -69,20 +69,22 @@ def transient_solve(eqn_sys, verbose=True):
 
     t_st = time.time()
     q = odesolve(eqn_sys.right_hand_side,
-                    eqn_sys.initial_state,
-                    output_times=eqn_sys.t,
-                    linear_setup=eqn_sys.setup_superlu,
-                    linear_solve=eqn_sys.solve_superlu,
-                    norm_weighting=eqn_sys.norm_weighting,
-                    step_size=step_size,
-                    linear_setup_rate=eqn_sys.linear_setup_rate,
-                    verbose=verbose,
-                    log_rate=100,
-                    show_solver_stats_in_situ=True)
+                 eqn_sys.initial_state,
+                 output_times=eqn_sys.t,
+                 linear_setup=eqn_sys.setup_superlu,
+                 linear_solve=eqn_sys.solve_superlu,
+                 norm_weighting=eqn_sys.norm_weighting,
+                 step_size=step_size,
+                 linear_setup_rate=eqn_sys.linear_setup_rate,
+                 verbose=verbose,
+                 log_rate=100,
+                 show_solver_stats_in_situ=True)
     solve_time = time.time() - t_st
 
     # LIM1TR timing statistics
-    eqn_sys.print_statistics()
+    if verbose:
+        eqn_sys.print_statistics()
+
     print(f'Total Solve Time (s): {solve_time:0.3f}')
 
     return eqn_sys.t, q

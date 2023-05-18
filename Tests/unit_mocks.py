@@ -14,17 +14,17 @@ import numpy as np
 
 other_mock = {'Y Dimension': 1.0,
     'Z Dimension': 1.0,
-    'Reaction Only': 0,
     'DSC Mode': 0,
     'DSC Rate': 0.0}
 
 
 time_opts_mock = {'Solution Mode': 'Steady',
     'Target Error': 1e-7,
+    'Maximum Steps Per Jacobian': 20,
     'Print Progress': 1,
     'Run Time': 1,
     'Fixed Step': True,
-    'dt': 0,
+    'dt': 1,
     'T Initial': np.zeros(1)}
 
 

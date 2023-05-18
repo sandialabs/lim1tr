@@ -34,17 +34,17 @@ class sub_reaction_tests(unittest.TestCase):
         sub_rxn = reaction_submodels.electrolyte_limiter(main_rxn)
 
         # Check concentration outputs
-        my_v = np.array([500, 100, 0, 1400, 300])
+        my_v = np.array([[500, 100, 0, 1400]]).T
         f_c_m = my_v[0]
         df_c_m = np.array([1, 0, 0, 0])
         err = np.abs(main_rxn.concentration_function(my_v) - f_c_m)
-        err += np.sum(np.abs(main_rxn.concentration_derivative(my_v) - df_c_m))
+        err += np.sum(np.abs(main_rxn.concentration_derivative(my_v).T - df_c_m))
 
         f_c_s = my_v[1]/(2.0 + my_v[1])
         df_c_s = np.zeros(4)
         df_c_s[1] = 2.0/(2.0 + my_v[1])**2
         err += np.abs(sub_rxn.concentration_function(my_v) - f_c_s)
-        err += np.sum(np.abs(sub_rxn.concentration_derivative(my_v) - df_c_s))
+        err += np.sum(np.abs(sub_rxn.concentration_derivative(my_v).T - df_c_s))
 
         f_c = f_c_m*f_c_s
         df_c = np.zeros(4)
@@ -52,7 +52,7 @@ class sub_reaction_tests(unittest.TestCase):
         df_c[1] = f_c_m*df_c_s[1]
         my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
         err += (my_rxn.concentration_function(my_v) - f_c)
-        err += np.sum(np.abs(my_rxn.concentration_derivative(my_v) - df_c))
+        err += np.sum(np.abs(my_rxn.concentration_derivative(my_v).T - df_c))
         self.assertTrue(err < 1e-15, '\tFailed: incorrect concentration computation.\n')
 
 
@@ -71,17 +71,17 @@ class sub_reaction_tests(unittest.TestCase):
 
         my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
 
-        my_v = np.array([500, 100, 0, 1400, 1000])
-        my_k_true = 1.0e+9*np.exp(-100000/(8.314*my_v[-1]))
-        my_k_dT = my_k_true*(100000/(8.314*my_v[-1]**2))
-        err = np.abs(main_rxn.evaluate_rate_constant(my_v) - my_k_true)
-        err += np.abs(main_rxn.evaluate_rate_constant_derivative(my_v, my_k_true) - my_k_dT)
+        my_T = np.array([1000])
+        my_k_true = 1.0e+9*np.exp(-100000/(8.314*my_T))
+        my_k_dT = my_k_true*(100000/(8.314*my_T**2))
+        err = np.abs(main_rxn.evaluate_rate_constant(my_T) - my_k_true)
+        err += np.abs(main_rxn.evaluate_rate_constant_derivative(my_T, my_k_true) - my_k_dT)
 
-        err += np.abs(sub_rxn.evaluate_rate_constant(my_v) - 1)
-        err += np.abs(sub_rxn.evaluate_rate_constant_derivative(my_v, 1) - 0)
+        err += np.abs(sub_rxn.evaluate_rate_constant(my_T) - 1)
+        err += np.abs(sub_rxn.evaluate_rate_constant_derivative(my_T, 1) - 0)
 
-        err += np.abs(my_rxn.evaluate_rate_constant(my_v) - my_k_true)
-        err += np.abs(my_rxn.evaluate_rate_constant_derivative(my_v, my_k_true) - my_k_dT)
+        err += np.abs(my_rxn.evaluate_rate_constant(my_T) - my_k_true)
+        err += np.abs(my_rxn.evaluate_rate_constant_derivative(my_T, my_k_true) - my_k_dT)
         self.assertTrue(err < 1e-15, '\tFailed: incorrect rate constant computation.\n')
 
 
@@ -99,17 +99,17 @@ class sub_reaction_tests(unittest.TestCase):
         sub_rxn = reaction_models_included.basic_rxn(rxn_info_sub, material_info)
         my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
 
-        my_v = np.array([500, 100, 0, 1400, 1000])
-        my_k_true = 1.0e+9*np.exp(-100000/(8.314*my_v[-1]))
-        my_k_dT = my_k_true*(100000/(8.314*my_v[-1]**2))
-        sub_k = 50.0*np.exp(-15000/my_v[-1])
-        sub_k_dT = sub_k*15000/my_v[-1]**2
-        err = np.abs(sub_rxn.evaluate_rate_constant(my_v) - sub_k)
-        err += np.abs(sub_rxn.evaluate_rate_constant_derivative(my_v, sub_k) - sub_k_dT)
+        my_T = np.array([1000])
+        my_k_true = 1.0e+9*np.exp(-100000/(8.314*my_T))
+        my_k_dT = my_k_true*(100000/(8.314*my_T**2))
+        sub_k = 50.0*np.exp(-15000/my_T)
+        sub_k_dT = sub_k*15000/my_T**2
+        err = np.abs(sub_rxn.evaluate_rate_constant(my_T) - sub_k)
+        err += np.abs(sub_rxn.evaluate_rate_constant_derivative(my_T, sub_k) - sub_k_dT)
 
-        err += np.abs(my_rxn.evaluate_rate_constant(my_v) - my_k_true*sub_k)
+        err += np.abs(my_rxn.evaluate_rate_constant(my_T) - my_k_true*sub_k)
         full_der = my_k_true*sub_k_dT + my_k_dT*sub_k
-        err += np.abs(my_rxn.evaluate_rate_constant_derivative(my_v, my_k_true*sub_k) - full_der)
+        err += np.abs(my_rxn.evaluate_rate_constant_derivative(my_T, my_k_true*sub_k) - full_der)
         self.assertTrue(err < 1e-15, '\tFailed: incorrect rate constant computation.\n')
 
 

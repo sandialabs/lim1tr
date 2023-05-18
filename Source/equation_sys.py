@@ -392,7 +392,7 @@ class eqn_sys:
         if self.reac_man:
             print(f'- Reaction (s)      : {self.time_reaction_jac:0.3f}')
         print(f'- Factor SuperLU (s): {self.factor_superlu_time:0.3f}')
-        print(f'- Calls: {self.setup_count}')
+        print(f'- Calls             : {self.setup_count}')
 
         print(f'\n  Solve SuperLU')
         print(f'- Time (s): {self.solve_superlu_time:0.3f}')
