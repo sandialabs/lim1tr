@@ -61,11 +61,9 @@ Time:
     Run Time: 1600.0            # s
     T Initial: 350.0            # K
     dt: 0.1                     # s
-    Order: 1                    # Conduction time stepper order
 
 Other:
     Y Dimension: 0.003          # m
     Z Dimension: 0.003          # m
-    Reaction Only: 1            # Only solve reactions
     DSC Mode: 1                 # Use the DSC model for temperature evolution
     DSC Rate: 0.166666667       # DSC heating rate in K/s

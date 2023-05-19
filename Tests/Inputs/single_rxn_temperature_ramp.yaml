@@ -39,10 +39,10 @@ Boundary:
 Time:
     Run Time: 20.0
     T Initial: 298.15
+    Print Progress: 0
 
 Other:
     Y Dimension: 0.1
     Z Dimension: 0.1
-    Reaction Only: 1
     DSC Mode: 1
     DSC Rate: 5.

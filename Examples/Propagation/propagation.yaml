@@ -47,9 +47,7 @@ Boundary:
 Time:
     Run Time: 100.0                                 # s
     T Initial: [973.15, 294.15, 294.15, 294.15]     # K
-    dt: 0.01                                        # s
     Output Frequency: 10
-    Order: 2
 
 Other:
     Y Dimension: 0.12       # m

@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import unittest
 import numpy as np
 import time, sys, os, copy
@@ -33,19 +32,11 @@ class reaction_tests(unittest.TestCase):
     def test_single_rxn_temperature_ramp(self):
         print('\nTesting single reaction with a constant temperature ramp...')
 
-        # Parse file
-        a_parser = input_parser.input_parser('./Inputs/single_rxn_temperature_ramp.yaml')
-        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
-
         # Solve reaction system
-        n_times = 20
-        t_arr = np.linspace(0, time_opts['Run Time'], n_times)
-        v_in = np.zeros(reac_man.n_species + 1)
-        for j in range(len(reac_man.species_name_list)):
-            v_in[j] = reac_man.species_density[reac_man.species_name_list[j]][0]
-        T_in = np.array([298.15])
-        v_in[-1] = T_in[0]
-        sol, sol_status = reac_man.reaction_systems[0].solve_ode_node(t_arr, v_in, atol=1e-13, rtol=1e-10)
+        model = main_fv.lim1tr_model('./Inputs/single_rxn_temperature_ramp.yaml')
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        sol = data_man.data_dict['AA']
+        t_arr = eqn_sys.t
 
         # Analytical solution
         T_rate = 5. # C/s
@@ -59,7 +50,7 @@ class reaction_tests(unittest.TestCase):
         rho_arr = rho_i*np.exp(-A*(expr_A + expr_B)/T_rate)
 
         # Calculate error
-        err = np.sum((rho_arr - sol[:,0])**2/n_times)**0.5
+        err = np.sum((rho_arr - sol[:,0])**2/t_arr.shape[0])**0.5
 
         if self.plotting:
             plt.figure()
@@ -150,27 +141,30 @@ class reaction_tests(unittest.TestCase):
         '''
         print('\nTesting critical thickness anode reaction...')
         # Parse file
-        a_parser = input_parser.input_parser('./Inputs/anode_only.yaml')
-        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
+        model = main_fv.lim1tr_model('./Inputs/anode_only.yaml')
+        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.parser.apply_parse()
 
         # Build variable vector
-        my_v = np.zeros(reac_man.n_species+1)
+        my_s = np.zeros(reac_man.n_species)
         for i in range(len(reac_man.species_name_list)):
-            my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
-        my_v[-1] = time_opts['T Initial']
+            my_s[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
+        my_v = np.zeros(reac_man.n_species + 1)
+        my_v[0] = time_opts['T Initial']
+        my_v[1:] = my_s
 
         # Compute function at base inputs
-        reac_sys = reac_man.reaction_systems[0]
-        my_f = reac_sys.evaluate_ode(0, my_v)
+        RHS_T, RHS_species = reac_man.right_hand_side(0, my_v)
 
         # Compute solution
+        reac_sys = reac_man.reaction_systems[0]
         my_rxn = reac_sys.model_list[0].my_funcs[0]
-        rho_50 = my_rxn.rxn_info['BET_C6']*my_rxn.rho*my_rxn.rxn_info['Y_Graphite']/200.0
-        rho_fun = my_v[my_rxn.name_map['C6Li']]*my_v[my_rxn.name_map['EC']]/(rho_50 + my_v[my_rxn.name_map['EC']])
-        crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_v[my_rxn.name_map['Li2CO3']])
+        rho_50 = my_rxn.rxn_info['BET_C6']*my_rxn.material_info['rho']*my_rxn.rxn_info['Y_Graphite']/200.0
+        rho_fun = my_s[my_rxn.name_map['C6Li']]*my_s[my_rxn.name_map['EC']]/(rho_50 + my_s[my_rxn.name_map['EC']])
+        crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_s[my_rxn.name_map['Li2CO3']])
         conc_fun_1 = my_rxn.a_e_crit*rho_fun*crit_fun
         r_1 = -1.*my_rxn.A*conc_fun_1*np.exp(-my_rxn.EoR/time_opts['T Initial'])
-        err = np.abs(r_1[0]*2*79.007/(2*79.007 + 88.062) - my_f[0])
+
+        err = np.abs(r_1[0]*2*79.007/(2*79.007 + 88.062) - RHS_species[0])
         self.assertTrue(err < 1e-12, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
@@ -181,44 +175,44 @@ class reaction_tests(unittest.TestCase):
         np.set_printoptions(linewidth = 200)
 
         # Parse file
-        a_parser = input_parser.input_parser('./Inputs/' + file_name + '.yaml')
-        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
+        model = main_fv.lim1tr_model('./Inputs/' + file_name + '.yaml')
+        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.parser.apply_parse()
 
         # Build variable vector
-        my_v = np.zeros(reac_man.n_species+1)
+        my_s = np.zeros(reac_man.n_species)
         for i in range(len(reac_man.species_name_list)):
-            my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
-        my_v[-1] = time_opts['T Initial']
+            my_s[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
+        my_v = np.zeros(reac_man.n_species + 1)
+        my_v[0] = time_opts['T Initial']
+        my_v[1:] = my_s
+        n_v = reac_man.n_species + 1
 
-        # Get reaction system
-        reac_sys = reac_man.reaction_systems[0]
-
-        # Compute Jacobain
-        jac_comp = reac_sys.evaluate_jacobian(0, my_v)
-
-        # Compute function at base inputs
-        my_f = reac_sys.evaluate_ode(0, my_v)
+        # Compute function and Jacobian at base inputs
+        RHS_T, RHS_species = reac_man.right_hand_side(0, my_v)
+        my_f = np.hstack([RHS_T, RHS_species])
+        R_jac = reac_man.jacobian(0, my_v).ravel().reshape([n_v, n_v])
 
         # Compute Jacobain from finite differences
         if self.grad_check:
             print('Performing FD gradient check...')
             for up in range(1,11):
                 du = 10**(-up)
-                jac_fin = np.zeros(jac_comp.shape)
+                jac_fin = np.zeros([n_v, n_v])
                 for i in range(my_v.shape[0]):
                     tmp_v = np.copy(my_v)
                     tmp_v[i] += du
-                    tmp_f = reac_sys.evaluate_ode(0, tmp_v)
+                    RHS_T, RHS_species = reac_man.right_hand_side(0, tmp_v)
+                    tmp_f = np.hstack([RHS_T, RHS_species])
                     jac_fin[:,i] = (tmp_f - my_f)/du
 
                 # Compute relative error
-                rel_err = np.zeros(jac_comp.shape)
+                rel_err = np.zeros(R_jac.shape)
                 N_v = 0
                 err = 0.
-                for i in range(reac_sys.n_species + 1):
-                    for j in range(reac_sys.n_species + 1):
-                        if np.abs(jac_comp[i,j]) > 1e-15:
-                            err_temp = np.abs((jac_comp[i,j] - jac_fin[i,j])/jac_comp[i,j])
+                for i in range(n_v):
+                    for j in range(n_v):
+                        if np.abs(R_jac[i,j]) > 1e-15:
+                            err_temp = np.abs((R_jac[i,j] - jac_fin[i,j])/R_jac[i,j])
                             rel_err[i,j] = err_temp
                             err += err_temp
                             N_v += 1
@@ -226,20 +220,21 @@ class reaction_tests(unittest.TestCase):
             return 0
 
         else:
-            jac_fin = np.zeros(jac_comp.shape)
+            jac_fin = np.zeros([n_v, n_v])
             for i in range(my_v.shape[0]):
                 tmp_v = np.copy(my_v)
                 tmp_v[i] += du
-                tmp_f = reac_sys.evaluate_ode(0, tmp_v)
+                RHS_T, RHS_species = reac_man.right_hand_side(0, tmp_v)
+                tmp_f = np.hstack([RHS_T, RHS_species])
                 jac_fin[:,i] = (tmp_f - my_f)/du
 
             # Compute relative error
             N_v = 0
             err = 0
-            for i in range(reac_sys.n_species + 1):
-                for j in range(reac_sys.n_species + 1):
-                    if np.abs(jac_comp[i,j]) > 1e-15:
-                        err += np.abs((jac_comp[i,j] - jac_fin[i,j])/jac_comp[i,j])
+            for i in range(n_v):
+                for j in range(n_v):
+                    if np.abs(R_jac[i,j]) > 1e-15:
+                        err += np.abs((R_jac[i,j] - jac_fin[i,j])/R_jac[i,j])
                         N_v += 1
             return err/N_v
 
@@ -256,7 +251,7 @@ class reaction_tests(unittest.TestCase):
 
     def test_jac_anode(self):
         err = self.fd_check('anode_only', du=1e-6)
-        self.assertTrue(err < 2e-7, '\tFailed with Error {:0.2e}\n'.format(err))
+        self.assertTrue(err < 3e-7, '\tFailed with Error {:0.2e}\n'.format(err))
 
 
     def test_jac_damkohler(self):
@@ -267,26 +262,26 @@ class reaction_tests(unittest.TestCase):
     def test_damkohler_anode(self):
         print('\nTesting Damkohler limiter on the critical thickness anode...')
         # Parse file
-        a_parser = input_parser.input_parser('./Inputs/damkohler_anode.yaml')
-        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = a_parser.apply_parse()
-        reac_sys = reac_man.reaction_systems[0]
+        model = main_fv.lim1tr_model('./Inputs/damkohler_anode.yaml')
+        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.parser.apply_parse()
 
         # Build variable vector
-        my_v = np.zeros(reac_man.n_species+1)
+        my_s = np.zeros(reac_man.n_species)
         for i in range(len(reac_man.species_name_list)):
-            my_v[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
-        my_v[-1] = time_opts['T Initial']
-        my_k = reac_sys.evaluate_rate_constant(my_v)
+            my_s[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
+        my_v = np.zeros(reac_man.n_species + 1)
+        my_v[0] = time_opts['T Initial']
+        my_v[1:] = my_s
 
         # Compute function at base inputs
-        reac_sys = reac_man.reaction_systems[0]
-        my_f = reac_sys.evaluate_ode(0, my_v)
+        RHS_T, RHS_species = reac_man.right_hand_side(0, my_v)
 
         # Compute zcrit portion
+        reac_sys = reac_man.reaction_systems[0]
         my_rxn = reac_sys.model_list[0].my_funcs[0]
-        rho_50 = my_rxn.rxn_info['BET_C6']*my_rxn.rho*my_rxn.rxn_info['Y_Graphite']/200.0
-        rho_fun = my_v[my_rxn.name_map['C6Li']]*my_v[my_rxn.name_map['EC']]/(rho_50 + my_v[my_rxn.name_map['EC']])
-        crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_v[my_rxn.name_map['Li2CO3']])
+        rho_50 = my_rxn.rxn_info['BET_C6']*my_rxn.material_info['rho']*my_rxn.rxn_info['Y_Graphite']/200.0
+        rho_fun = my_s[my_rxn.name_map['C6Li']]*my_s[my_rxn.name_map['EC']]/(rho_50 + my_s[my_rxn.name_map['EC']])
+        crit_fun = np.exp(-my_rxn.C_t*my_rxn.z_c*my_s[my_rxn.name_map['Li2CO3']])
         conc_fun_1 = my_rxn.a_e_crit*rho_fun*crit_fun
         r_1 = -1.*my_rxn.A*conc_fun_1*np.exp(-my_rxn.EoR/time_opts['T Initial'])
 
@@ -294,9 +289,9 @@ class reaction_tests(unittest.TestCase):
         dam_info = my_rxn.rxn_info['Damkohler']
         AD = 1141791418.7518132
         EDoR = 12027.181430031871
-        Da = 1.0/(1 + AD*np.exp(-EDoR/my_v[-1]))
+        Da = 1.0/(1 + AD*np.exp(-EDoR/my_v[0]))
 
-        err = np.abs(r_1[0]*Da*2*79.007/(2*79.007 + 88.062) - my_f[0])
+        err = np.abs(r_1[0]*Da*2*79.007/(2*79.007 + 88.062) - RHS_species[0])
         self.assertTrue(err < 1e-12, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 

@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 
 
@@ -86,13 +85,13 @@ class rxn_model:
         return key_list, val_arr
 
 
-    def evaluate_rate_constant(self, my_v):
-        return self.A*np.exp(-self.EoR/my_v[-1])
+    def evaluate_rate_constant(self, T):
+        return self.A*np.exp(-self.EoR/T)
 
 
-    def evaluate_rate_constant_derivative(self, my_v, my_k):
-        return my_k*self.evaluate_rate_constant_derivative_part(my_v)
+    def evaluate_rate_constant_derivative(self, T, my_k):
+        return my_k*self.evaluate_rate_constant_derivative_part(T)
 
 
-    def evaluate_rate_constant_derivative_part(self, my_v):
-        return self.EoR/my_v[-1]**2
+    def evaluate_rate_constant_derivative_part(self, T):
+        return self.EoR/T**2

@@ -8,10 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
-import numpy as np
-import os
-
 
 # Include supplied models
 from reaction_models_included import *

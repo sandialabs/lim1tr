@@ -112,9 +112,9 @@ Boundary:
 Time:
     Run Time: 100.0
     T Initial: 298.15
-    dt: 0.005
-    Order: 2
-    Output Frequency: 20
+    Output Frequency: 10
+    Target Error: 1.0e-10
+    Maximum Steps Per Jacobian: 1
 
 Other:
     Y Dimension: 0.13

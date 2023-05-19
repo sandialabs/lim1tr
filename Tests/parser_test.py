@@ -8,9 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
-import numpy as np
-import time
 import sys
 sys.path.append('../Source')
 import input_parser

@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import unittest
 import numpy as np
 import scipy as sp
@@ -24,7 +23,7 @@ import matplotlib.pyplot as plt
 
 class rad_tests(unittest.TestCase):
     def setUp(self):
-        self.plotting = False
+        self.plotting = True
 
 
     def test_steady_rad(self):
@@ -84,18 +83,6 @@ class rad_tests(unittest.TestCase):
             plt.close()
 
 
-    def test_trans_rad_one(self):
-        print('\nTesting transient radiation with first order time...')
-        err = self.trans_rad(1)
-        self.assertTrue(err < 2e-6, '\tFailed with MSE {:0.2e}\n'.format(err))
-
-
-    def test_trans_rad_two(self):
-        print('\nTesting transient radiation with second order time...')
-        err = self.trans_rad(2)
-        self.assertTrue(err < 1e-13, '\tFailed with MSE {:0.2e}\n'.format(err))
-
-
     def lumped_rad(self, T, dt, phi, T_i, T_e):
         T_e_2 = T_e**2
         T_e_3 = T_e**3
@@ -115,12 +102,12 @@ class rad_tests(unittest.TestCase):
         return my_f, my_j
 
 
-    def trans_rad(self, t_order):
+    def test_trans_rad(self):
+        print('\nTesting transient radiation with first order time...')
         file_name = os.getcwd() + '/Inputs/trans_rad_bc.yaml'
 
         # Run model
         model = main_fv.lim1tr_model(file_name)
-        model.parser.cap_dict['Time']['Order'] = t_order
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
 
         t_sim = data_man.data_dict['Time'].flatten()
@@ -172,7 +159,7 @@ class rad_tests(unittest.TestCase):
             plt.savefig('./Figures/trans_rad.png', bbox_inches='tight')
             plt.close()
 
-        return err
+        self.assertTrue(err < 2e-6, '\tFailed with MSE {:0.2e}\n'.format(err))
 
 
     def test_arc_bc(self):

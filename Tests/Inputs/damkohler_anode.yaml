@@ -54,9 +54,8 @@ Boundary:
 Time:
     Run Time: 30.
     T Initial: 448.15
-    dt: 0.1
+    Output Frequency: 10
 
 Other:
     Y Dimension: 0.01
     Z Dimension: 0.01
-    Reaction Only: 1
