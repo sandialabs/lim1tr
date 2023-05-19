@@ -8,12 +8,10 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 import time
 from numba import jit
 from spitfire import PIController, odesolve
-from spitfire import RK4ClassicalS4P4, BackwardEulerS1P1Q1, SimpleNewtonSolver 
 
 
 @jit(nopython=True)

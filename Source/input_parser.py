@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 import os, sys
 import pandas as pd
@@ -193,9 +192,9 @@ class input_parser:
 
         # Set Jacobian lag if not provided
         if 'Maximum Steps Per Jacobian' not in time_dict.keys():
-            time_dict['Maximum Steps Per Jacobian'] = 10
+            time_dict['Maximum Steps Per Jacobian'] = 20
         else:
-            time_dict['Maximum Steps Per Jacobian'] = float(time_dict['Maximum Steps Per Jacobian'])
+            time_dict['Maximum Steps Per Jacobian'] = int(time_dict['Maximum Steps Per Jacobian'])
         
         # Set accuracy order
         if 'Steady' in time_dict['Solution Mode']:

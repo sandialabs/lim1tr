@@ -8,9 +8,7 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
-from scipy.integrate import solve_ivp
 import reaction_models
 
 
@@ -23,10 +21,7 @@ class reaction_system:
 
         self.dsc_mode = dsc_info[0]
         self.dsc_rate = dsc_info[1]
-        if self.dsc_mode:
-            self.temperature_ode = self.linear_temperature
-        else:
-            self.temperature_ode = self.rxn_temperature
+        self.set_temperature_ode(self.dsc_mode)
 
         # Build heat of reaction array from models
         self.H_rxn = np.zeros(self.n_rxn)
@@ -38,6 +33,13 @@ class reaction_system:
         if self.dsc_mode:
             aug_row = aug_row*0.
         self.aug_mat = np.concatenate((aug_row, self.frac_mat), axis=0)
+
+
+    def set_temperature_ode(self, use_dsc):
+        if use_dsc:
+            self.temperature_ode = self.linear_temperature
+        else:
+            self.temperature_ode = self.rxn_temperature
 
 
     def evaluate_ode(self, t, T_arr, species_mat):

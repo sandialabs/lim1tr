@@ -61,7 +61,6 @@ Time:
     Run Time: 1600.0            # s
     T Initial: 350.0            # K
     dt: 0.1                     # s
-    Order: 1                    # Conduction time stepper order
 
 Other:
     Y Dimension: 0.003          # m
