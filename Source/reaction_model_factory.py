@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 import reaction_models
 
@@ -61,40 +60,47 @@ class model_chain:
         self.H_rxn = self.my_funcs[0].H_rxn
 
 
-    def concentration_function(self, my_v):
+    def concentration_function(self, species_mat):
         conc_func = 1.0
+        i = 0
         for func in self.my_funcs:
-            conc_func *= func.concentration_function(my_v)
+            conc_func *= func.concentration_function(species_mat)
+            i += 1
         return conc_func
 
 
-    def concentration_derivative(self, my_v):
-        my_dr_part_col = np.zeros(self.n_species)
-        conc_funcs = np.zeros(self.n_funs)
-        conc_ders = np.zeros([self.n_funs, self.n_species])
-        for i in range(self.n_funs):
-            conc_funcs[i] = self.my_funcs[i].concentration_function(my_v)
-            conc_ders[i,:] = self.my_funcs[i].concentration_derivative(my_v)
+    def concentration_derivative(self, species_mat):
+        dr_ds_part = np.zeros(species_mat.shape)
 
-        conc_prods = np.zeros(self.n_funs)
+        conc_funcs = np.zeros([self.n_funs, species_mat.shape[1]])
+        conc_ders = np.zeros([self.n_funs, self.n_species, species_mat.shape[1]])
         for i in range(self.n_funs):
-            conc_prods[i] = np.prod(np.delete(conc_funcs, i))
+            conc_funcs[i,:] = self.my_funcs[i].concentration_function(species_mat)
+            conc_ders[i,:,:] = self.my_funcs[i].concentration_derivative(species_mat)
+
+        conc_prods = np.zeros([self.n_funs, species_mat.shape[1]])
+        for i in range(self.n_funs):
+            conc_prods[i,:] = np.prod(np.delete(conc_funcs, i, axis=0), axis=0)
 
         for j in range(self.n_species):
-            my_dr_part_col[j] = np.sum(conc_ders[:,j]*conc_prods)
+            dr_ds_part[j,:] = np.sum(conc_ders[:,j,:]*conc_prods, axis=0)
 
-        return my_dr_part_col
+        return dr_ds_part
 
 
-    def evaluate_rate_constant(self, my_v):
+    def evaluate_rate_constant(self, T_arr):
         my_k = 1.0
+        i = 0
         for func in self.my_funcs:
-            my_k *= func.evaluate_rate_constant(my_v)
+            my_k *= func.evaluate_rate_constant(T_arr)
+            i += 1
         return my_k
 
 
-    def evaluate_rate_constant_derivative(self, my_v, my_k):
+    def evaluate_rate_constant_derivative(self, T_arr, my_k):
         my_k_dT = 0.0
+        i = 0
         for func in self.my_funcs:
-            my_k_dT += func.evaluate_rate_constant_derivative_part(my_v)
+            my_k_dT += func.evaluate_rate_constant_derivative_part(T_arr)
+            i += 1
         return my_k*my_k_dT

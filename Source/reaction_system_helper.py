@@ -8,14 +8,7 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
-
-
-def map_all_systems(active_cells, cell_node_key):
-    system_index, unique_system_list = find_unique_systems(active_cells)
-    node_to_system_map = map_system_to_node(system_index, cell_node_key)
-    return node_to_system_map, unique_system_list
 
 
 def find_unique_systems(active_cells):
@@ -56,12 +49,3 @@ def get_system_index(my_system, unique_system_list):
         err_str = 'Reaction system not found in unique system list.'
         raise ValueError(err_str)
     return system_index
-
-
-def map_system_to_node(system_index, cell_node_key):
-    node_to_system_map = np.array([-1]*len(cell_node_key), dtype=int)
-    for i in range(len(cell_node_key)):
-        cell_num = cell_node_key[i]
-        if cell_num > 0:
-            node_to_system_map[i] = system_index[cell_num - 1]
-    return node_to_system_map

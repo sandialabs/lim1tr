@@ -1,9 +1,16 @@
-from __future__ import division
 import numpy as np
 import sys, os
 import pickle as p
 import matplotlib.pyplot as plt
-plt.style.use('pres')
+import matplotlib as mpl
+mpl.rcParams['axes.titlesize'] = 28
+mpl.rcParams['axes.labelsize'] = 28
+mpl.rcParams['xtick.labelsize'] = 24
+mpl.rcParams['ytick.labelsize'] = 24
+mpl.rcParams['legend.fontsize'] = 24
+mpl.rcParams['figure.figsize'] = (12., 10.)
+mpl.rcParams['lines.markersize'] = 10
+mpl.rcParams['lines.linewidth'] = 3
 
 
 # Figures folder

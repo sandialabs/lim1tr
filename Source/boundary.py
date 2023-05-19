@@ -8,8 +8,9 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
+import os
+import pickle as p
 import boundary_types
 
 
@@ -23,37 +24,54 @@ class bc_manager:
         self.dx_arr = grid_man.dx_arr
         self.n_tot = grid_man.n_tot
         self.PA_r = grid_man.PA_r  # Perimeter to cross-sectional area ratio
+        self.mint_list = grid_man.mint_list
+        self.boundaries = []
+        self.nonlinear_boundaries = []
+        self.timed_boundaries = []
+        self.controlled_boundaries = []
+        self.arc_boundaries = []
+        self.nonlinear_flag = False
 
 
     def setup(self, bnd_dict):
         '''Sets up parameters and apply functions for
         left, right, and external BCs
         '''
-        self.boundaries = []
-        self.timed_boundaries = []
 
         # End BCs (left and right)
         for my_end in ['Left', 'Right']:
-            my_params = bnd_dict[my_end]
-            my_params['Type'] = my_params['Type'].strip().lower()
-            if my_params['Type'] == 'adiabatic':
+            end_params = bnd_dict[my_end]
+            end_params['Type'] = end_params['Type'].strip().lower()
+            if end_params['Type'] == 'adiabatic':
                 end_bc = boundary_types.end_bc(self.dx_arr, my_end)
-            elif my_params['Type'] == 'convection':
+            elif end_params['Type'] == 'dirichlet':
+                end_bc = boundary_types.end_dirichlet(self.dx_arr, my_end)
+                end_bc.set_params(end_params['T'])
+            elif end_params['Type'] == 'temperature control':
+                end_bc = boundary_types.end_temperature_control(self.dx_arr, my_end)
+                end_bc.set_params(end_params['T'], end_params['T Rate'], end_params['T Cutoff'],
+                    end_params['T Location'], end_params['T End'], end_params['h'], self.mint_list)
+            elif end_params['Type'] == 'convection':
                 end_bc = boundary_types.end_convection(self.dx_arr, my_end)
-                end_bc.set_params(my_params['h'], my_params['T'])
-            elif my_params['Type'] == 'heat flux':
+                end_bc.set_params(end_params['h'], end_params['T'])
+            elif end_params['Type'] == 'heat flux':
                 end_bc = boundary_types.end_flux(self.dx_arr, my_end)
-                end_bc.set_params(my_params['Flux'])
+                end_bc.set_params(end_params['Flux'])
+            elif end_params['Type'] == 'radiation':
+                end_bc = boundary_types.end_radiation(self.dx_arr, my_end)
+                end_bc.set_params(end_params['eps'], end_params['T'])
+                self.nonlinear_flag = True
+            elif end_params['Type'] == 'radiation arc':
+                end_bc = boundary_types.end_radiation_arc(self.dx_arr, my_end)
+                end_bc.set_params(end_params['eps'], end_params['T'], end_params['Max Rate'])
+                self.nonlinear_flag = True
+                err_str = 'Boundary type {} for {} boundary is currently not supported.'.format(end_params['Type'], my_end)
+                raise ValueError(err_str)
             else:
-                err_str = 'Boundary type {} for {} boundary not found.'.format(my_params['Type'], my_end)
+                err_str = 'Boundary type {} for {} boundary not found.'.format(end_params['Type'], my_end)
                 raise ValueError(err_str)
 
-            if 'Deactivation Time' in my_params.keys():
-                off_time = my_params['Deactivation Time']
-                timed_bc = boundary_types.timed_boundary(end_bc, off_time)
-                self.timed_boundaries.append(timed_bc)
-            else:
-                self.boundaries.append(end_bc)
+            self.register_bc(end_bc, end_params)
 
         # External BC
         ext_params = bnd_dict['External']
@@ -63,18 +81,39 @@ class bc_manager:
         elif ext_params['Type'] == 'convection':
             ext_bc = boundary_types.ext_convection(self.dx_arr, self.PA_r)
             ext_bc.set_params(ext_params['h'], ext_params['T'])
+        elif ext_params['Type'] == 'radiation':
+            ext_bc = boundary_types.ext_radiation(self.dx_arr, self.PA_r)
+            ext_bc.set_params(ext_params['eps'], ext_params['T'])
+            self.nonlinear_flag = True
         else:
             err_str = 'Boundary type {} for external boundary not found.'.format(ext_params['Type'])
             raise ValueError(err_str)
-        if 'Deactivation Time' in ext_params.keys():
-            off_time = ext_params['Deactivation Time']
-            timed_bc = boundary_types.timed_boundary(ext_bc, off_time)
+        self.register_bc(ext_bc, ext_params)
+
+
+    def register_bc(self, bc, params):
+        if 'Deactivation Time' in params.keys():
+            if 'radiation' in bc.name:
+                err_str = 'Timed Radiation BC is currently not supported.'
+                raise ValueError(err_str)
+            off_time = params['Deactivation Time']
+            timed_bc = boundary_types.timed_boundary(bc, off_time)
             self.timed_boundaries.append(timed_bc)
+        elif 'control' in bc.name:
+            self.controlled_boundaries.append(bc)
+            self.boundaries.append(bc)
+        elif 'radiation' in bc.name:
+            self.nonlinear_boundaries.append(bc)
         else:
-            self.boundaries.append(ext_bc)
+            self.boundaries.append(bc)
+
+        if '_arc' in bc.name:
+            self.arc_boundaries.append(bc)
 
 
-    def apply(self, eqn_sys, mat_man, tot_time):
+    def apply(self, eqn_sys, mat_man, T, tot_time):
+        for control_bc in self.controlled_boundaries:
+            control_bc.update_temperature(T, tot_time)
         for timed_bc in self.timed_boundaries:
             timed_bc.set_time(tot_time)
             timed_bc.apply(eqn_sys, mat_man)
@@ -82,9 +121,24 @@ class bc_manager:
             bc.apply(eqn_sys, mat_man)
 
 
-    def apply_operator(self, eqn_sys, mat_man, T, tot_time):
-        for timed_bc in self.timed_boundaries:
-            timed_bc.set_time(tot_time)
-            timed_bc.apply_operator(eqn_sys, mat_man, T)
-        for bc in self.boundaries:
-            bc.apply_operator(eqn_sys, mat_man, T)
+    def apply_nonlinear(self, eqn_sys, mat_man, T):
+        for bc in self.nonlinear_boundaries:
+            bc.apply(eqn_sys, mat_man, T)
+
+
+    def update(self, T, dt):
+        for bc in self.arc_boundaries:
+            bc.update_params(T, dt)
+
+
+    def update_post_step(self):
+        for bc in self.arc_boundaries:
+            bc.update_post_step()
+
+
+    def get_bc_output(self):
+        bc_out = {}
+        for bc in self.arc_boundaries:
+            key = '{}_T'.format(bc.name)
+            bc_out[key] = bc.T_old
+        return bc_out

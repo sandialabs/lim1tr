@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 
 
@@ -79,6 +78,12 @@ class grid_manager:
         self.x_node = np.zeros(self.n_tot)
         for i in range(self.n_tot):
             self.x_node[i] = 0.5*self.dx_arr[i] + np.sum(self.dx_arr[:i])
+
+        # Build map of layers and first and last node indices
+        self.layer_map = {}
+        for i in range(self.n_layers):
+            key = '{}_{}'.format(i, self.layer_names[i])
+            self.layer_map[key] = [self.first_node_list[i], self.mint_list[i]]
 
 
     def set_PA_r(self, oth_dict):

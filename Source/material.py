@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 
 
@@ -82,8 +81,10 @@ class material_manager:
             # Evaluate cp
             self.cp_arr[i] = self.get_material(self.mat_nodes[i]).eval_cp()
 
-            # Evaluate the mass matrix
-            self.m_arr[i] = self.rho_arr[i]*self.cp_arr[i]*self.dx_arr[i]
+        # Evaluate the mass matrix
+        self.m_arr = self.rho_arr*self.cp_arr*self.dx_arr
+        self.i_m_arr = 1/self.m_arr
+        self.i_rcp = self.i_m_arr*self.dx_arr
 
         # Evaluate interface properties
         # Internal interfaces

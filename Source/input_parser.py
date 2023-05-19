@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 import os, sys
 import pandas as pd
@@ -103,7 +102,7 @@ class input_parser:
             reac_man = False
 
         # Data manager
-        data_man = data.data_manager(grid_man, reac_man, time_opts, self.cap_dict, self.fold_name, self.file_name)
+        data_man = data.data_manager(grid_man, reac_man, self.cap_dict, self.fold_name, self.file_name)
 
         return mat_man, grid_man, bc_man, reac_man, data_man, time_opts
 
@@ -168,21 +167,39 @@ class input_parser:
         '''
         time_dict = self.cap_dict['Time']
 
+        # Adaptive (default) or fixed time
+        if 'dt' in time_dict.keys():
+            time_dict['Fixed Step'] = True
+        else:
+            time_dict['Fixed Step'] = False
+            time_dict['dt'] = 0.0
+
         # Determine tranisent run
         if time_dict['Run Time'] < 1e-16:
             time_dict['Solution Mode'] = 'Steady'
-            time_dict['dt'] = 0.0
         else:
             time_dict['Solution Mode'] = 'Transient'
-            if 'Force Split' in time_dict.keys():
-                time_dict['Solution Mode'] += ' Split'
 
         # Set max steps if not provided
         if 'Max Steps' not in time_dict.keys():
             time_dict['Max Steps'] = 1e7
+
+        # Set time stepper target error if not provided
+        if 'Target Error' not in time_dict.keys():
+            time_dict['Target Error'] = 1e-7
+        else:
+            time_dict['Target Error'] = float(time_dict['Target Error'])
+
+        # Set Jacobian lag if not provided
+        if 'Maximum Steps Per Jacobian' not in time_dict.keys():
+            time_dict['Maximum Steps Per Jacobian'] = 20
+        else:
+            time_dict['Maximum Steps Per Jacobian'] = int(time_dict['Maximum Steps Per Jacobian'])
         
-        # Set accuracy order if not provided
-        if 'Order' not in time_dict.keys():
+        # Set accuracy order
+        if 'Steady' in time_dict['Solution Mode']:
+            time_dict['Order'] = 0
+        elif 'Order' not in time_dict.keys():
             time_dict['Order'] = 1
 
         # Set output frequency if not provided

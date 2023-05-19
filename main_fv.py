@@ -8,7 +8,6 @@
 #                                                                                      #
 ########################################################################################
 
-from __future__ import division
 import numpy as np
 import time
 import sys, os
@@ -22,7 +21,6 @@ import solvers
 import input_parser
 import conduction
 import equation_sys
-import time_integrator
 
 
 class lim1tr_model:
@@ -45,17 +43,18 @@ class lim1tr_model:
         cond_man = conduction.conduction_manager(grid_man)
 
         # Initialize equation system
-        eqn_sys = equation_sys.eqn_sys(grid_man, reac_man,
-            time_opts['Solution Mode'], time_opts['Order'], time_opts['Print Progress'])
+        eqn_sys = equation_sys.eqn_sys(mat_man, cond_man, bc_man, grid_man, reac_man, time_opts)
 
         # Initialize linear solver (for numba)
         eqn_sys.init_linear_solver()
 
-        # Initialize time integrator
-        t_int = time_integrator.time_int(grid_man, time_opts)
-
         # Solve system
-        eqn_sys.solve(mat_man, cond_man, bc_man, reac_man, data_man, t_int)
+        if 'Steady' in time_opts['Solution Mode']:
+            solvers.steady_solve(eqn_sys)
+        else:
+            t, q = solvers.transient_solve(eqn_sys, verbose=time_opts['Print Progress'])
+            data_man.format_data(t, q)
+            data_man.write_data()
 
         # Return managers and options
         return eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts
