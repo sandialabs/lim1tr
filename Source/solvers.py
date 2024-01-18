@@ -12,6 +12,7 @@ import numpy as np
 import time
 from numba import jit
 from spitfire import PIController, odesolve
+from spitfire import SimpleNewtonSolver, KennedyCarpenterS6P4Q3
 
 
 @jit(nopython=True)
@@ -65,13 +66,18 @@ def transient_solve(eqn_sys, verbose=True):
     else:
         step_size = PIController(target_error=eqn_sys.target_error)
 
+    linear_setup=eqn_sys.setup_superlu
+    linear_solve=eqn_sys.solve_superlu
+    method=KennedyCarpenterS6P4Q3(SimpleNewtonSolver())
+
     t_st = time.time()
     q = odesolve(eqn_sys.right_hand_side,
                  eqn_sys.initial_state,
                  output_times=eqn_sys.t,
-                 linear_setup=eqn_sys.setup_superlu,
-                 linear_solve=eqn_sys.solve_superlu,
+                 linear_setup=linear_setup,
+                 linear_solve=linear_solve,
                  norm_weighting=eqn_sys.norm_weighting,
+                 method=method,
                  step_size=step_size,
                  linear_setup_rate=eqn_sys.linear_setup_rate,
                  verbose=verbose,

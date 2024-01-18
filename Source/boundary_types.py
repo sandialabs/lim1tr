@@ -16,10 +16,6 @@ class bc_base:
         return 0
 
 
-    def apply_operator(self, *args):
-        return 0
-
-
 class end_bc(bc_base):
     def __init__(self, dx_arr, my_end):
         my_end = my_end.lower()
