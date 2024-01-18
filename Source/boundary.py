@@ -49,8 +49,8 @@ class bc_manager:
                 end_bc.set_params(end_params['T'])
             elif end_params['Type'] == 'temperature control':
                 end_bc = boundary_types.end_temperature_control(self.dx_arr, my_end)
-                end_bc.set_params(end_params['T'], end_params['T Rate'], end_params['T Cutoff'],
-                    end_params['T Location'], end_params['T End'], end_params['h'], self.mint_list)
+                end_bc.set_params(end_params['Subtype'].strip().lower(), end_params['T Cutoff'],
+                    end_params['T Location'], end_params['T End'], end_params['h'], end_params, self.mint_list)
             elif end_params['Type'] == 'convection':
                 end_bc = boundary_types.end_convection(self.dx_arr, my_end)
                 end_bc.set_params(end_params['h'], end_params['T'])

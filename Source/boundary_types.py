@@ -51,16 +51,33 @@ class end_dirichlet(end_bc):
         eqn_sys.RHS[self.n_ind] += phi*self.T_end
 
 
-class end_temperature_control(end_bc):
-    def set_params(self, T_i, T_rate, T_cutoff, T_location, T_end, h_end, mint_list):
-        self.T_con = T_i
+class end_temperature_ramp(end_bc):
+    def set_params(self, T_i, T_rate):
         self.T_i = T_i
         self.T_rate = T_rate
+
+class end_temperature_control(end_bc):
+    # def set_params(self, T_i, T_rate, T_cutoff, T_location, T_end, h_end, mint_list):
+    def set_params(self, subtype, T_cutoff, T_location, T_end, h_end, params, mint_list):
+        if 'temperature ramp' in subtype:
+            self.T_rate = params['T Rate']
+            self.T_i = params['T Init']
+            self.T_con = params['T Init']
+            self.update_temperature = self.update_temperature_rate
+            self.apply_subtype = self.apply_rate
+        elif 'heat flux' in subtype:
+            self.flux = params['Flux']
+            self.update_temperature = self.update_temperature_only
+            self.apply_subtype = self.apply_flux
+        else:
+            err_str = 'Sub-boundary type {} for controlled boundary not found.'.format(subtype)
+            raise ValueError(err_str)
+
         self.T_cutoff = T_cutoff
         self.name += '_control'
         self.heater_on = True
         self.h_end = h_end
-        self.T_end = T_i
+        self.T_end = T_end
 
         # Logic for the control TC location
         if T_location == 0:
@@ -79,18 +96,22 @@ class end_temperature_control(end_bc):
             self.r_ind = self.l_ind + 1
 
 
-    def update_temperature(self, T, tot_time):
+    def update_temperature_rate(self, T, tot_time):
         self.T_con = self.T_i + self.T_rate*tot_time
         self.cutoff_function(T)
 
 
+    def update_temperature_only(self, T, tot_time):
+        self.cutoff_function(T)
+
+
     def end_cutoff(self, T):
-        if self.T_con >= self.T_cutoff:
+        if T[self.n_ind] >= self.T_cutoff:
             self.heater_on = False
 
 
     def opposite_cutoff(self, T):
-        if self.T[self.n_opp] >= self.T_cutoff:
+        if T[self.n_opp] >= self.T_cutoff:
             self.heater_on = False
 
 
@@ -102,14 +123,26 @@ class end_temperature_control(end_bc):
 
     def apply(self, eqn_sys, mat_man):
         if self.heater_on:
-            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-            eqn_sys.LHS_c[self.n_ind] += phi
-            eqn_sys.RHS[self.n_ind] += phi*self.T_con
+            self.apply_subtype(eqn_sys, mat_man)
         else:
-            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-            c_end = self.h_end*phi/(self.h_end + phi)
-            eqn_sys.LHS_c[self.n_ind] += c_end
-            eqn_sys.RHS[self.n_ind] += c_end*self.T_end
+            self.apply_convection(eqn_sys, mat_man)
+
+
+    def apply_rate(self, eqn_sys, mat_man):
+        phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
+        eqn_sys.LHS_c[self.n_ind] += phi
+        eqn_sys.RHS[self.n_ind] += phi*self.T_con
+
+
+    def apply_flux(self, eqn_sys, mat_man):
+        eqn_sys.RHS[self.n_ind] += self.flux
+
+
+    def apply_convection(self, eqn_sys, mat_man):
+        phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
+        c_end = self.h_end*phi/(self.h_end + phi)
+        eqn_sys.LHS_c[self.n_ind] += c_end
+        eqn_sys.RHS[self.n_ind] += c_end*self.T_end
 
 
 class end_convection(end_bc):

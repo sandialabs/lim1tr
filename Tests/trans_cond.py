@@ -116,27 +116,57 @@ class trans_cond_tests(unittest.TestCase):
         self.assertTrue(err < 5e-2, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
-    def test_controlled_bc(self):
-        print('\nTesting flux boundary deactivation...')
+    def test_ramp_controlled_bc(self):
+        print('\nTesting heating rate boundary deactivation...')
         # Build model
         file_name = os.getcwd() + '/Inputs/small_cube.yaml'
         model = main_fv.lim1tr_model(file_name)
 
         # Set temperature control on left BC
+        control_params ={}
         control_bc = {'Type': 'Temperature Control',
-            'T': 300.,
-            'T Rate': 5,
-            'T Location': 0,
-            'T Cutoff': 325,
-            'T End': 300.,
-            'h': 0}
+                      'Subtype': 'Temperature Ramp',
+                      'T Init': 300.,
+                      'T Rate': 5,
+                      'T Location': 0,
+                      'T Cutoff': 325,
+                      'T End': 300.,
+                      'h': 0}
+
         bnd_dict = {'External': {'Type': 'Adiabatic'},
             'Left': control_bc,
             'Right': {'Type': 'Adiabatic'}}
         model.parser.cap_dict['Boundary'] = bnd_dict
         model.parser.cap_dict['Materials']['A']['k'] = 500.
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
-        T_true = 324.5
+        T_true = 324.70395815
+        T_sol = data_man.data_dict['Temperature'][-1,:]
+
+        err = abs(T_true - T_sol[0])
+        self.assertTrue(err < 1e-8, '\tFailed with RMSE {:0.2e}\n'.format(err))
+
+
+    def test_flux_controlled_bc(self):
+        print('\nTesting flux boundary deactivation...')
+        # Build model
+        file_name = os.getcwd() + '/Inputs/small_cube.yaml'
+        model = main_fv.lim1tr_model(file_name)
+
+        # Set flux control on left BC
+        control_bc = {'Type': 'Temperature Control',
+                      'Subtype': 'Heat Flux',
+                      'Flux': 50000.,
+                      'T Location': 0,
+                      'T Cutoff': 325,
+                      'T End': 300.,
+                      'h': 0}
+        bnd_dict = {'External': {'Type': 'Adiabatic'},
+            'Left': control_bc,
+            'Right': {'Type': 'Adiabatic'}}
+        model.parser.cap_dict['Boundary'] = bnd_dict
+        model.parser.cap_dict['Materials']['A']['k'] = 500.
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_true = 325.01262027
         T_sol = data_man.data_dict['Temperature'][-1,:]
 
         err = abs(T_true - T_sol[0])
