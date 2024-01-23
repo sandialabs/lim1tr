@@ -78,6 +78,7 @@ class eqn_sys:
         self.J_fac_c = np.zeros(self.n_tot)
         self.J_fac_l = np.zeros(self.n_tot)
         self.J_fac_u = np.zeros(self.n_tot)
+        self.dT = np.zeros(self.n_tot)
 
         # Timers and counters
         self.time_conduction = 0
@@ -305,22 +306,18 @@ class eqn_sys:
         t_st = time.time()
         self.clean()
         self.clean_nonlinear()
-        self.J_fac_c = np.zeros(self.n_tot)
-        self.J_fac_l = np.zeros(self.n_tot)
-        self.J_fac_u = np.zeros(self.n_tot)
         self.clean_time += time.time() - t_st
 
         self.setup_conduction_jacobian(t, state)
 
         self.J_fac_c = prefactor*self.J_c - 1
         self.J_fac_l = prefactor*self.J_l
-        self.J_fac_u *= prefactor*self.J_u
+        self.J_fac_u = prefactor*self.J_u
 
 
     def solve_conduction(self, residual):
         self.solve_count += 1
         t_st = time.time()
-        self.dT = np.zeros(self.n_tot)
         self.tridiag_solver(self.J_fac_l, self.J_fac_c, self.J_fac_u, residual,
                             self.dT, self.cp, self.dp, self.n_tot)
         self.solve_linear_time += time.time() - t_st

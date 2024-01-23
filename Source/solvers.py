@@ -66,8 +66,12 @@ def transient_solve(eqn_sys, verbose=True):
     else:
         step_size = PIController(target_error=eqn_sys.target_error)
 
-    linear_setup=eqn_sys.setup_superlu
-    linear_solve=eqn_sys.solve_superlu
+    if eqn_sys.reac_man:
+        linear_setup=eqn_sys.setup_superlu
+        linear_solve=eqn_sys.solve_superlu
+    else:
+        linear_setup=eqn_sys.setup_conduction
+        linear_solve=eqn_sys.solve_conduction
     method=KennedyCarpenterS6P4Q3(SimpleNewtonSolver())
 
     t_st = time.time()

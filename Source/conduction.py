@@ -13,10 +13,7 @@ import numpy as np
 
 class conduction_manager:
     def __init__(self, grid_man):
-        '''Applies conduction terms to the LHS. 
-        The grid stuff in initialize will probably
-        change to be handled by a grid manager.
-        Sets up bounds and loads grid.
+        '''Applies conduction terms to the LHS.
 
         Args:
             grid_man (object): grid manager
