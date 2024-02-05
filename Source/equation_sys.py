@@ -75,13 +75,18 @@ class eqn_sys:
         self.J_l = np.zeros(self.n_tot)
         self.F = np.zeros(self.n_tot)
 
+        self.J_fac_c = np.zeros(self.n_tot)
+        self.J_fac_l = np.zeros(self.n_tot)
+        self.J_fac_u = np.zeros(self.n_tot)
+        self.dT = np.zeros(self.n_tot)
+
         # Timers and counters
         self.time_conduction = 0
         self.time_reaction = 0
         self.time_conduction_jac = 0
         self.time_reaction_jac = 0
         self.factor_superlu_time = 0
-        self.solve_superlu_time = 0
+        self.solve_linear_time = 0
         self.cond_apply_time = 0
         self.cond_F_time = 0
         self.bc_time = 0
@@ -147,8 +152,8 @@ class eqn_sys:
         print(self.RHS)
 
 
-    def init_linear_solver(self):
-        self.my_linear_solver = solvers.tridiag
+    def init_tridiag_solver(self):
+        self.tridiag_solver = solvers.tridiag
 
 
     def clean(self):
@@ -172,33 +177,7 @@ class eqn_sys:
         self.clean_nonlinear()
         self.clean_time += time.time() - t_st
 
-        t_st = time.time()
-        # Assemble conduction RHS
-        tc_st = time.time()
-        self.cond_man.apply(self, self.mat_man)
-        self.cond_apply_time += time.time() - tc_st
-
-        # Apply linear boundary terms
-        tbc_st = time.time()
-        T_arr = state[:self.n_tot]
-        self.bc_man.apply(self, self.mat_man, T_arr, t)
-        self.bc_time += time.time() - tbc_st
-
-        # Compute linear contributions to F
-        tl_st = time.time()
-        self.F = self.LHS_c*T_arr - self.RHS
-        self.F[:-1] += self.LHS_u[:-1]*T_arr[1:]
-        self.F[1:] += self.LHS_l[1:]*T_arr[:-1]
-        self.cond_F_time += time.time() - tl_st
-
-        # Non-linear BCs
-        tnl_st = time.time()
-        self.bc_man.apply_nonlinear(self, self.mat_man, T_arr)
-        self.nlbc_time += time.time() - tnl_st
-
-        self.F *= -1*self.mat_man.i_m_arr
-
-        self.time_conduction += time.time() - t_st
+        self.conduction_right_hand_side(t, state)
 
         # Assemble RXN F
         if self.reac_man:
@@ -214,37 +193,41 @@ class eqn_sys:
         return self.F
 
 
-    def setup_superlu(self, t, state, prefactor):
-        self.setup_count += 1
+    def conduction_right_hand_side(self, t, state):
         t_st = time.time()
-        self.clean()
-        self.clean_nonlinear()
-        self.clean_time += time.time() - t_st
 
-        # Assemble conduction RHS
-        t_st = time.time()
-        self.cond_man.apply(self, self.mat_man)
+        # Linear energy contributions
+        T_state = state[:self.n_tot]
+        self.apply_energy_eq_operators(t, T_state)
 
-        # Apply linear boundary terms
-        self.bc_man.apply(self, self.mat_man, state[:self.n_tot], t)
+        # Compute linear contributions to F
+        tl_st = time.time()
+        self.F += self.LHS_c*T_state - self.RHS
+        self.F[:-1] += self.LHS_u[:-1]*T_state[1:]
+        self.F[1:] += self.LHS_l[1:]*T_state[:-1]
+        self.cond_F_time += time.time() - tl_st
 
         # Non-linear BCs
-        self.bc_man.apply_nonlinear(self, self.mat_man, state[:self.n_tot])
+        tnl_st = time.time()
+        self.bc_man.apply_nonlinear(self, self.mat_man, T_state)
+        self.nlbc_time += time.time() - tnl_st
 
-        self.J_c += self.LHS_c
-        self.J_u += self.LHS_u
-        self.J_l += self.LHS_l
-        self.J_c *= -1*self.mat_man.i_m_arr
-        self.J_l *= -1*self.mat_man.i_m_arr
-        self.J_u *= -1*self.mat_man.i_m_arr
+        # Transient contribution
+        self.F *= -1*self.mat_man.i_m_arr
 
-        # Make flat array to map in to Jacobian
+        self.time_conduction += time.time() - t_st
+
+
+    def setup_jacobian(self, t, state):
+        # Assemble conduction terms
+        self.setup_conduction_jacobian(t, state)
+
+        # Make flat array to map in to Jacobian for adding species equations
+        t_st = time.time()
         J_flat = np.zeros(self.n_tot*(2 + self.dof_node**2))
         J_flat[:self.n_tot] = self.J_l
         J_flat[self.n_tot:2*self.n_tot] = self.J_u
-        self.time_conduction_jac += time.time() - t_st
 
-        t_st = time.time()
         if self.reac_man:
             # Assemble RXN Jacobian
             R_jac = self.reac_man.jacobian(t, state)
@@ -264,6 +247,47 @@ class eqn_sys:
         self.jac.data = J_flat[self.ind_jac.data]
         self.time_reaction_jac += time.time() - t_st
 
+
+    def setup_conduction_jacobian(self, t, state):
+        t_st = time.time()
+
+        # # Apply linear energy terms
+        T_state = state[:self.n_tot]
+        self.apply_energy_eq_operators(t, T_state)
+
+        # Non-linear BCs
+        self.bc_man.apply_nonlinear(self, self.mat_man, state[:self.n_tot])
+
+        self.J_c += self.LHS_c
+        self.J_u += self.LHS_u
+        self.J_l += self.LHS_l
+        self.J_c *= -1*self.mat_man.i_m_arr
+        self.J_l *= -1*self.mat_man.i_m_arr
+        self.J_u *= -1*self.mat_man.i_m_arr
+        self.time_conduction_jac += time.time() - t_st
+
+
+    def apply_energy_eq_operators(self, t, T_state):
+        # Apply conduction terms
+        tc_st = time.time()
+        self.cond_man.apply(self, self.mat_man)
+        self.cond_apply_time += time.time() - tc_st
+
+        # Apply linear boundary terms
+        tbc_st = time.time()
+        self.bc_man.apply(self, self.mat_man, T_state, t)
+        self.bc_time += time.time() - tbc_st
+
+
+    def setup_superlu(self, t, state, prefactor):
+        self.setup_count += 1
+        t_st = time.time()
+        self.clean()
+        self.clean_nonlinear()
+        self.clean_time += time.time() - t_st
+
+        self.setup_jacobian(t, state)
+
         t_st = time.time()
         self._lhs_inverse_operator = superlu_factor(prefactor * self.jac - self._I)
         self.factor_superlu_time += time.time() - t_st
@@ -273,13 +297,36 @@ class eqn_sys:
         self.solve_count += 1
         t_st = time.time()
         l_op_solve = self._lhs_inverse_operator.solve(residual)
-        self.solve_superlu_time += time.time() - t_st
+        self.solve_linear_time += time.time() - t_st
         return l_op_solve, 1, True
+
+
+    def setup_conduction(self, t, state, prefactor):
+        self.setup_count += 1
+        t_st = time.time()
+        self.clean()
+        self.clean_nonlinear()
+        self.clean_time += time.time() - t_st
+
+        self.setup_conduction_jacobian(t, state)
+
+        self.J_fac_c = prefactor*self.J_c - 1
+        self.J_fac_l = prefactor*self.J_l
+        self.J_fac_u = prefactor*self.J_u
+
+
+    def solve_conduction(self, residual):
+        self.solve_count += 1
+        t_st = time.time()
+        self.tridiag_solver(self.J_fac_l, self.J_fac_c, self.J_fac_u, residual,
+                            self.dT, self.cp, self.dp, self.n_tot)
+        self.solve_linear_time += time.time() - t_st
+        return self.dT, 1, True
 
 
     def steady_solve(self):
         self.set_conduction_solve()
-        self.conduction_solve()
+        self.conduction_solve(0, self.initial_state)
 
 
     def set_conduction_solve(self):
@@ -290,19 +337,23 @@ class eqn_sys:
             self.conduction_solve = self.linear_conduction_solve
 
 
-    def linear_conduction_solve(self):
+    def linear_conduction_solve(self, t, state):
         time_st = time.time()
 
-        # Apply linear terms
-        self.apply_conduction_operators()
+        # Apply linear energy terms
+        self.apply_energy_eq_operators(t, state)
         self.LHS_c *= self.mat_man.i_m_arr
         self.LHS_l *= self.mat_man.i_m_arr
         self.LHS_u *= self.mat_man.i_m_arr
         self.RHS *= self.mat_man.i_m_arr
+        self.F = self.LHS_c*state - self.RHS
+        self.F[:-1] += self.LHS_u[:-1]*state[1:]
+        self.F[1:] += self.LHS_l[1:]*state[:-1]
 
         # Solve
-        self.my_linear_solver(self.LHS_l, self.LHS_c, self.LHS_u, self.RHS,
+        self.tridiag_solver(self.LHS_l, self.LHS_c, self.LHS_u, self.F,
                               self.T_sol, self.cp, self.dp, self.n_tot)
+        self.T_sol = state - self.T_sol
 
         # Reset linear system
         self.clean()
@@ -310,13 +361,14 @@ class eqn_sys:
         self.time_conduction += time.time() - time_st
 
 
-    def nonlinear_conduction_solve(self):
+    def nonlinear_conduction_solve(self, t, state):
         time_st = time.time()
         dT = np.zeros(self.n_tot)
-        self.T_sol = np.copy(self.initial_state )
+        self.T_sol = np.copy(state)
 
         # Apply terms that don't depend on the new temperature
-        self.apply_conduction_operators()
+        T_state = state[:self.n_tot]
+        self.apply_energy_eq_operators(t, T_state)
         self.LHS_c *= self.mat_man.i_m_arr
         self.LHS_l *= self.mat_man.i_m_arr
         self.LHS_u *= self.mat_man.i_m_arr
@@ -343,7 +395,7 @@ class eqn_sys:
             self.F *= -1
 
             # Solve
-            self.my_linear_solver(self.J_l, self.J_c, self.J_u, self.F,
+            self.tridiag_solver(self.J_l, self.J_c, self.J_u, self.F,
                                   dT, self.cp, self.dp, self.n_tot)
 
             # Calculate error
@@ -366,14 +418,6 @@ class eqn_sys:
         self.time_conduction += time.time() - time_st
 
 
-    def apply_conduction_operators(self):
-        # Apply conduction terms
-        self.cond_man.apply(self, self.mat_man)
-
-        # Apply boundary terms
-        self.bc_man.apply(self, self.mat_man, self.T_sol, 0)
-
-
     def print_statistics(self):
         print('LIM1TR Stastics:')
         print('  RHS Assembly')
@@ -393,8 +437,8 @@ class eqn_sys:
         print(f'- Factor SuperLU (s): {self.factor_superlu_time:0.3f}')
         print(f'- Calls             : {self.setup_count}')
 
-        print(f'\n  Solve SuperLU')
-        print(f'- Time (s): {self.solve_superlu_time:0.3f}')
+        print(f'\n  Solve Linear System')
+        print(f'- Time (s): {self.solve_linear_time:0.3f}')
         print(f'- Calls   : {self.solve_count}')
 
         print('\n  Other')

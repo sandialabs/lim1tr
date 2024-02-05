@@ -24,7 +24,7 @@ Boundary:
 Time:
     Run Time: 2.0
     T Initial: 298.15
-    Target Error: 1e-10
+    Target Error: 1e-6
     Print Progress: 0
 
 Other:
