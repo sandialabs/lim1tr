@@ -81,6 +81,7 @@ def transient_solve(eqn_sys, verbose=True):
                  linear_setup=linear_setup,
                  linear_solve=linear_solve,
                  norm_weighting=eqn_sys.norm_weighting,
+                 post_step_callback=eqn_sys.post_step,
                  method=method,
                  step_size=step_size,
                  linear_setup_rate=eqn_sys.linear_setup_rate,

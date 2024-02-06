@@ -195,12 +195,6 @@ class input_parser:
             time_dict['Maximum Steps Per Jacobian'] = 20
         else:
             time_dict['Maximum Steps Per Jacobian'] = int(time_dict['Maximum Steps Per Jacobian'])
-        
-        # Set accuracy order
-        if 'Steady' in time_dict['Solution Mode']:
-            time_dict['Order'] = 0
-        elif 'Order' not in time_dict.keys():
-            time_dict['Order'] = 1
 
         # Set output frequency if not provided
         if 'Output Frequency' not in time_dict.keys():

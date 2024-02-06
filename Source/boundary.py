@@ -27,8 +27,6 @@ class bc_manager:
         self.mint_list = grid_man.mint_list
         self.boundaries = []
         self.nonlinear_boundaries = []
-        self.timed_boundaries = []
-        self.controlled_boundaries = []
         self.arc_boundaries = []
         self.nonlinear_flag = False
 
@@ -98,10 +96,7 @@ class bc_manager:
                 raise ValueError(err_str)
             off_time = params['Deactivation Time']
             timed_bc = boundary_types.timed_boundary(bc, off_time)
-            self.timed_boundaries.append(timed_bc)
-        elif 'control' in bc.name:
-            self.controlled_boundaries.append(bc)
-            self.boundaries.append(bc)
+            self.boundaries.append(timed_bc)
         elif 'radiation' in bc.name:
             self.nonlinear_boundaries.append(bc)
         else:
@@ -111,21 +106,23 @@ class bc_manager:
             self.arc_boundaries.append(bc)
 
 
-    def apply(self, eqn_sys, mat_man, T, tot_time):
-        for control_bc in self.controlled_boundaries:
-            control_bc.update_temperature(T, tot_time)
-        for timed_bc in self.timed_boundaries:
-            timed_bc.set_time(tot_time)
-            timed_bc.apply(eqn_sys, mat_man)
+    def apply(self, eqn_sys, mat_man, t, T):
         for bc in self.boundaries:
-            bc.apply(eqn_sys, mat_man)
+            bc.apply(eqn_sys, mat_man, t, T)
 
 
-    def apply_nonlinear(self, eqn_sys, mat_man, T):
+    def apply_nonlinear(self, eqn_sys, mat_man, t, T):
         for bc in self.nonlinear_boundaries:
-            bc.apply(eqn_sys, mat_man, T)
+            bc.apply(eqn_sys, mat_man, t, T)
 
 
+    def post_step(self):
+        for bc in self.boundaries:
+            bc.post_step()
+        for bc in self.nonlinear_boundaries:
+            bc.post_step()
+
+    # Stuff below this doesn't work currently
     def update(self, T, dt):
         for bc in self.arc_boundaries:
             bc.update_params(T, dt)

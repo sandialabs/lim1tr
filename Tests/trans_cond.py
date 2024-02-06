@@ -139,7 +139,7 @@ class trans_cond_tests(unittest.TestCase):
         model.parser.cap_dict['Boundary'] = bnd_dict
         model.parser.cap_dict['Materials']['A']['k'] = 500.
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
-        T_true = 324.70395815
+        T_true = 325.125
         T_sol = data_man.data_dict['Temperature'][-1,:]
 
         err = abs(T_true - T_sol[0])
@@ -166,7 +166,7 @@ class trans_cond_tests(unittest.TestCase):
         model.parser.cap_dict['Boundary'] = bnd_dict
         model.parser.cap_dict['Materials']['A']['k'] = 500.
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
-        T_true = 325.01262027
+        T_true = 325.0
         T_sol = data_man.data_dict['Temperature'][-1,:]
 
         err = abs(T_true - T_sol[0])
