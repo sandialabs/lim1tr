@@ -9,8 +9,7 @@
 ########################################################################################
 
 import numpy as np
-import os, sys
-import pandas as pd
+import os
 import yaml
 import material
 import boundary

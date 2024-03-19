@@ -12,6 +12,10 @@ import numpy as np
 
 
 class bc_base:
+    def setup_params(self):
+        return 0
+
+
     def apply(self, *args):
         return 0
 
@@ -40,130 +44,60 @@ class end_bc(bc_base):
 
 
 class end_dirichlet(end_bc):
-    def set_params(self, T):
-        self.T_dir = T
+    def setup_params(self):
         self.name += '_dirichlet'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
         eqn_sys.LHS_c[self.n_ind] += phi
-        eqn_sys.RHS[self.n_ind] += phi*self.T_dir
+        eqn_sys.RHS[self.n_ind] += phi*self.T
 
 
 class end_convection(end_bc):
-    def set_params(self, h, T):
-        self.h_end = h
-        self.T_conv = T
+    def setup_params(self):
         self.name += '_convection'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds end convection BC terms to system.
         '''
         phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-        c_end = self.h_end*phi/(self.h_end + phi)
+        c_end = self.h*phi/(self.h + phi)
         eqn_sys.LHS_c[self.n_ind] += c_end
-        eqn_sys.RHS[self.n_ind] += c_end*self.T_conv
+        eqn_sys.RHS[self.n_ind] += c_end*self.T
 
 
 class end_flux(end_bc):
-    def set_params(self, flux):
-        self.flux = flux
+    def setup_params(self):
         self.name += '_flux'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds heat flux bc term to end.
         '''
-        eqn_sys.RHS[self.n_ind] += self.flux
-
-
-class end_temperature_control(end_bc):
-    def set_params(self, subtype, T_cutoff, T_location, T_conv, h_end, params, mint_list):
-        if 'temperature ramp' in subtype:
-            self.T_rate = params['T Rate']
-            self.T_i = params['T Init']
-            self.apply = self.apply_rate
-            self.ramp_bc = end_dirichlet(self.dx_arr, self.my_end)
-            self.ramp_bc.set_params(params['T Init'])
-        elif 'heat flux' in subtype:
-            self.flux = params['Flux']
-            self.apply = self.apply_flux
-        else:
-            err_str = 'Sub-boundary type {} for controlled boundary not found.'.format(subtype)
-            raise ValueError(err_str)
-
-        self.T_cutoff = T_cutoff
-        self.name += '_control'
-        self.cutoff_trigger = False
-        self.conv_bc = end_convection(self.dx_arr, self.my_end)
-        self.conv_bc.set_params(h_end, T_conv)
-
-        # Logic for the control TC location
-        self.cutoff_function = self.end_cutoff
-        if T_location == 0:
-            if 'left' in self.name:
-                self.n_cut = self.n_ind
-            else:
-                self.n_cut = self.n_opp
-        elif T_location == len(mint_list):
-            if 'right' in self.name:
-                self.n_cut = self.n_ind
-            else:
-                self.n_cut = self.n_opp
-        else:
-            self.cutoff_function = self.interface_cutoff
-            self.l_ind = mint_list[T_location - 1]
-            self.r_ind = self.l_ind + 1
-
-
-    def cutoff_base(self, T):
-        if T >= self.T_cutoff:
-            self.cutoff_trigger = True
-
-
-    def end_cutoff(self, T):
-        self.cutoff_base(T[self.n_cut])
-
-
-    def interface_cutoff(self, T):
-        self.cutoff_base(0.5*(T[self.l_ind] + T[self.r_ind]))
-
-
-    def apply_rate(self, eqn_sys, mat_man, t, T):
-        self.ramp_bc.T_dir = self.T_i + self.T_rate*t
-        self.cutoff_function(T)
-        self.ramp_bc.apply(eqn_sys, mat_man, t, T)
-
-
-    def apply_flux(self, eqn_sys, mat_man, t, T):
-        self.cutoff_function(T)
-        eqn_sys.RHS[self.n_ind] += self.flux
-
-
-    def post_step(self):
-        if self.cutoff_trigger:
-            self.apply = self.conv_bc.apply
+        eqn_sys.RHS[self.n_ind] += self.Flux
 
 
 class end_radiation(end_bc):
-    def set_params(self, eps, T):
-        self.sigma_eps = 5.67e-8*eps
-        self.T_ext_4 = T**4
+    def setup_params(self):
+        self.sigma_eps = 5.67e-8*self.eps
+        self.T_ext_4 = self.T**4
         self.name += '_radiation'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds end radiation BC terms to system.
         '''
-        eqn_sys.J_c[self.n_ind] += self.sigma_eps*4*T[self.n_ind]**3
-        eqn_sys.F[self.n_ind] += self.sigma_eps*(T[self.n_ind]**4 - self.T_ext_4)
+        eqn_sys.J_c[self.n_ind] += self.sigma_eps*4*T_state[self.n_ind]**3
+        eqn_sys.F[self.n_ind] += self.sigma_eps*(T_state[self.n_ind]**4 - self.T_ext_4)
 
 
 class end_radiation_arc(end_radiation):
     def set_params(self, eps, T, dTdt_max):
-        super().set_params(eps, T)
+        self.sigma_eps = 5.67e-8*eps
+        self.T_ext_4 = T**4
+        self.name += '_radiation'
         self.dTdt_max = dTdt_max
         self.T_old = 1.*T
         self.T_ext = 1.*T
@@ -191,46 +125,156 @@ class ext_bc(bc_base):
 
 
 class ext_convection(ext_bc):
-    def set_params(self, h, T):
-        self.h_ext = h
-        self.T_ext = T
+    def setup_params(self):
         self.name += '_convection'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds external convection terms
         '''
-        h_const = self.h_ext*self.dx_PA_r
+        h_const = self.h*self.dx_PA_r
 
         # LHS
         eqn_sys.LHS_c += h_const
 
         # RHS
-        eqn_sys.RHS += h_const*self.T_ext
+        eqn_sys.RHS += h_const*self.T
 
 
 class ext_radiation(ext_bc):
-    def set_params(self, eps, T):
-        self.sigma_eps = 5.67e-8*eps
-        self.T_ext_4 = T**4
+    def setup_params(self):
+        self.sigma_eps = 5.67e-8*self.eps
+        self.T_ext_4 = self.T**4
         self.C = self.dx_PA_r*self.sigma_eps
         self.name += '_radiation'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds end convection BC terms to system.
         '''
-        eqn_sys.J_c += self.C*4*T**3
-        eqn_sys.F += self.C*(T**4 - self.T_ext_4)
+        eqn_sys.J_c += self.C*4*T_state**3
+        eqn_sys.F += self.C*(T_state**4 - self.T_ext_4)
+
+
+class end_temperature_control(bc_base):
+    def __init__(self, bc, dx_arr, mint_list):
+        self.bc = bc
+        self.dx_arr = dx_arr
+        self.mint_list = mint_list
+        self.cutoff_trigger = False
+        self.name = self.bc.name + '_control'
+
+
+    def setup_params(self):
+        self.conv_bc = end_convection(self.dx_arr, self.bc.my_end)
+        setattr(self.conv_bc, 'T', self.T_post)
+        setattr(self.conv_bc, 'h', self.h_post)
+        self.conv_bc.setup_params()
+
+        # Logic for the control TC location
+        self.cutoff_function = self.end_cutoff
+        if self.T_location == 0:
+            if 'left' in self.name:
+                self.n_cut = self.bc.n_ind
+            else:
+                self.n_cut = self.bc.n_opp
+        elif self.T_location == len(self.mint_list):
+            if 'right' in self.name:
+                self.n_cut = self.bc.n_ind
+            else:
+                self.n_cut = self.bc.n_opp
+        else:
+            self.cutoff_function = self.interface_cutoff
+            self.l_ind = self.mint_list[self.T_location - 1]
+            self.r_ind = self.l_ind + 1
+
+
+    def cutoff_base(self, T_state):
+        if T_state >= self.T_cutoff:
+            self.cutoff_trigger = True
+
+
+    def end_cutoff(self, T_state):
+        self.cutoff_base(T_state[self.n_cut])
+
+
+    def interface_cutoff(self, T_state):
+        self.cutoff_base(0.5*(T_state[self.l_ind] + T_state[self.r_ind]))
+
+
+    def apply(self, eqn_sys, mat_man, t, T):
+        self.cutoff_function(T)
+        self.bc.apply(eqn_sys, mat_man, t, T)
+
+
+    def post_step(self):
+        if self.cutoff_trigger:
+            self.apply = self.conv_bc.apply
 
 
 class timed_boundary(bc_base):
     def __init__(self, bc, off_time):
         self.bc = bc
         self.off_time = off_time
-        self.bc.name += '_timed'
+        self.name = self.bc.name + '_timed'
 
 
-    def apply(self, eqn_sys, mat_man, t, T):
+    def apply(self, eqn_sys, mat_man, t, T_state):
         if self.off_time > t:
-            self.bc.apply(eqn_sys, mat_man, t, T)
+            self.bc.apply(eqn_sys, mat_man, t, T_state)
+
+
+    def post_step(self):
+        self.bc.post_step()
+
+
+class temporal_boundary(bc_base):
+    def __init__(self, bc):
+        self.bc = bc
+        self.param_names = []
+        self.param_functions = []
+        self.name = self.bc.name + '_temporal'
+        if 'ext_' not in self.bc.name:
+            self.my_end = self.bc.my_end
+            self.n_ind = self.bc.n_ind
+            self.n_opp = self.bc.n_opp
+            self.k_ind = self.bc.k_ind
+
+
+    def add_param(self, param_name, param_function):
+        self.param_names.append(param_name)
+        self.param_functions.append(param_function)
+
+
+    def apply(self, eqn_sys, mat_man, t, T_state):
+        self.update_params(t)
+        self.bc.apply(eqn_sys, mat_man, t, T_state)
+
+
+    def update_params(self, t):
+        for i in range(len(self.param_names)):
+            setattr(self.bc, self.param_names[i], self.param_functions[i](t))
+
+
+    def post_step(self):
+        self.bc.post_step()
+
+
+class ramp_function:
+    def __init__(self, rate, init_val):
+        self.rate = rate
+        self.init_val = init_val
+
+
+    def __call__(self, t):
+        return self.init_val + t*self.rate
+
+
+class table_function:
+    def __init__(self, table_x, table_y):
+        self.table_x = table_x
+        self.table_y = table_y
+
+
+    def __call__(self, t):
+        return np.interp(t, self.table_x, self.table_y)

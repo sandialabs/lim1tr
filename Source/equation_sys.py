@@ -329,16 +329,10 @@ class eqn_sys:
 
 
     def steady_solve(self):
-        self.set_conduction_solve()
-        self.conduction_solve(0, self.initial_state)
-
-
-    def set_conduction_solve(self):
-        # Set conduction solver
         if self.bc_man.nonlinear_flag:
-            self.conduction_solve = self.nonlinear_conduction_solve
+            self.nonlinear_conduction_solve(0, self.initial_state)
         else:
-            self.conduction_solve = self.linear_conduction_solve
+            self.linear_conduction_solve(0, self.initial_state)
 
 
     def linear_conduction_solve(self, t, state):

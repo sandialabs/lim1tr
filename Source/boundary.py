@@ -8,10 +8,7 @@
 #                                                                                      #
 ########################################################################################
 
-import numpy as np
-import os
-import pickle as p
-import boundary_types
+import boundary_factory
 
 
 class bc_manager:
@@ -35,75 +32,23 @@ class bc_manager:
         '''Sets up parameters and apply functions for
         left, right, and external BCs
         '''
-
         # End BCs (left and right)
         for my_end in ['Left', 'Right']:
             end_params = bnd_dict[my_end]
-            end_params['Type'] = end_params['Type'].strip().lower()
-            if end_params['Type'] == 'adiabatic':
-                end_bc = boundary_types.end_bc(self.dx_arr, my_end)
-            elif end_params['Type'] == 'dirichlet':
-                end_bc = boundary_types.end_dirichlet(self.dx_arr, my_end)
-                end_bc.set_params(end_params['T'])
-            elif end_params['Type'] == 'temperature control':
-                end_bc = boundary_types.end_temperature_control(self.dx_arr, my_end)
-                end_bc.set_params(end_params['Subtype'].strip().lower(), end_params['T Cutoff'],
-                    end_params['T Location'], end_params['T End'], end_params['h'], end_params, self.mint_list)
-            elif end_params['Type'] == 'convection':
-                end_bc = boundary_types.end_convection(self.dx_arr, my_end)
-                end_bc.set_params(end_params['h'], end_params['T'])
-            elif end_params['Type'] == 'heat flux':
-                end_bc = boundary_types.end_flux(self.dx_arr, my_end)
-                end_bc.set_params(end_params['Flux'])
-            elif end_params['Type'] == 'radiation':
-                end_bc = boundary_types.end_radiation(self.dx_arr, my_end)
-                end_bc.set_params(end_params['eps'], end_params['T'])
-                self.nonlinear_flag = True
-            elif end_params['Type'] == 'radiation arc':
-                end_bc = boundary_types.end_radiation_arc(self.dx_arr, my_end)
-                end_bc.set_params(end_params['eps'], end_params['T'], end_params['Max Rate'])
-                self.nonlinear_flag = True
-                err_str = 'Boundary type {} for {} boundary is currently not supported.'.format(end_params['Type'], my_end)
-                raise ValueError(err_str)
-            else:
-                err_str = 'Boundary type {} for {} boundary not found.'.format(end_params['Type'], my_end)
-                raise ValueError(err_str)
-
-            self.register_bc(end_bc, end_params)
+            end_bc = boundary_factory.factory(my_end, end_params, self.dx_arr, self.PA_r, self.mint_list)
+            self.register_bc(end_bc)
 
         # External BC
-        ext_params = bnd_dict['External']
-        ext_params['Type'] = ext_params['Type'].strip().lower()
-        if ext_params['Type'] == 'adiabatic':
-            ext_bc = boundary_types.ext_bc(self.dx_arr, self.PA_r)
-        elif ext_params['Type'] == 'convection':
-            ext_bc = boundary_types.ext_convection(self.dx_arr, self.PA_r)
-            ext_bc.set_params(ext_params['h'], ext_params['T'])
-        elif ext_params['Type'] == 'radiation':
-            ext_bc = boundary_types.ext_radiation(self.dx_arr, self.PA_r)
-            ext_bc.set_params(ext_params['eps'], ext_params['T'])
+        ext_bc = boundary_factory.factory('External', bnd_dict['External'], self.dx_arr, self.PA_r, self.mint_list)
+        self.register_bc(ext_bc)
+
+
+    def register_bc(self, bc):
+        if 'radiation' in bc.name:
+            self.nonlinear_boundaries.append(bc)
             self.nonlinear_flag = True
         else:
-            err_str = 'Boundary type {} for external boundary not found.'.format(ext_params['Type'])
-            raise ValueError(err_str)
-        self.register_bc(ext_bc, ext_params)
-
-
-    def register_bc(self, bc, params):
-        if 'Deactivation Time' in params.keys():
-            if 'radiation' in bc.name:
-                err_str = 'Timed Radiation BC is currently not supported.'
-                raise ValueError(err_str)
-            off_time = params['Deactivation Time']
-            timed_bc = boundary_types.timed_boundary(bc, off_time)
-            self.boundaries.append(timed_bc)
-        elif 'radiation' in bc.name:
-            self.nonlinear_boundaries.append(bc)
-        else:
             self.boundaries.append(bc)
-
-        if '_arc' in bc.name:
-            self.arc_boundaries.append(bc)
 
 
     def apply(self, eqn_sys, mat_man, t, T):

@@ -123,15 +123,14 @@ class trans_cond_tests(unittest.TestCase):
         model = main_fv.lim1tr_model(file_name)
 
         # Set temperature control on left BC
-        control_params ={}
-        control_bc = {'Type': 'Temperature Control',
-                      'Subtype': 'Temperature Ramp',
-                      'T Init': 300.,
-                      'T Rate': 5,
-                      'T Location': 0,
-                      'T Cutoff': 325,
-                      'T End': 300.,
-                      'h': 0}
+        control_bc = {'Type': 'Dirichlet',
+                      'T': {'Initial': 300, 'Rate': 5},
+                      'Temperature Control': {
+                        'T Location': 0,
+                        'T Cutoff': 325,
+                        'T Post': 300.,
+                        'h Post': 0}
+                     }
 
         bnd_dict = {'External': {'Type': 'Adiabatic'},
             'Left': control_bc,
@@ -153,13 +152,14 @@ class trans_cond_tests(unittest.TestCase):
         model = main_fv.lim1tr_model(file_name)
 
         # Set flux control on left BC
-        control_bc = {'Type': 'Temperature Control',
-                      'Subtype': 'Heat Flux',
+        control_bc = {'Type': 'Heat Flux',
                       'Flux': 50000.,
-                      'T Location': 0,
-                      'T Cutoff': 325,
-                      'T End': 300.,
-                      'h': 0}
+                      'Temperature Control': {
+                        'T Location': 0,
+                        'T Cutoff': 325,
+                        'T Post': 300.,
+                        'h Post': 0}
+                     }
         bnd_dict = {'External': {'Type': 'Adiabatic'},
             'Left': control_bc,
             'Right': {'Type': 'Adiabatic'}}
