@@ -23,7 +23,6 @@ Time:
     Run Time: 2.0
     dt: 0.001
     T Initial: 300.0
-    Order: 1
     Print Progress: 0
 
 Other:

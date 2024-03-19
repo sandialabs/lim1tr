@@ -209,7 +209,7 @@ class eqn_sys:
 
         # Non-linear BCs
         tnl_st = time.time()
-        self.bc_man.apply_nonlinear(self, self.mat_man, T_state)
+        self.bc_man.apply_nonlinear(self, self.mat_man, t, T_state)
         self.nlbc_time += time.time() - tnl_st
 
         # Transient contribution
@@ -256,7 +256,7 @@ class eqn_sys:
         self.apply_energy_eq_operators(t, T_state)
 
         # Non-linear BCs
-        self.bc_man.apply_nonlinear(self, self.mat_man, state[:self.n_tot])
+        self.bc_man.apply_nonlinear(self, self.mat_man, t, state[:self.n_tot])
 
         self.J_c += self.LHS_c
         self.J_u += self.LHS_u
@@ -275,7 +275,7 @@ class eqn_sys:
 
         # Apply linear boundary terms
         tbc_st = time.time()
-        self.bc_man.apply(self, self.mat_man, T_state, t)
+        self.bc_man.apply(self, self.mat_man, t, T_state)
         self.bc_time += time.time() - tbc_st
 
 
@@ -324,17 +324,15 @@ class eqn_sys:
         return self.dT, 1, True
 
 
+    def post_step(self, t, state, residual, number_of_time_steps):
+        self.bc_man.post_step()
+
+
     def steady_solve(self):
-        self.set_conduction_solve()
-        self.conduction_solve(0, self.initial_state)
-
-
-    def set_conduction_solve(self):
-        # Set conduction solver
         if self.bc_man.nonlinear_flag:
-            self.conduction_solve = self.nonlinear_conduction_solve
+            self.nonlinear_conduction_solve(0, self.initial_state)
         else:
-            self.conduction_solve = self.linear_conduction_solve
+            self.linear_conduction_solve(0, self.initial_state)
 
 
     def linear_conduction_solve(self, t, state):
@@ -380,7 +378,7 @@ class eqn_sys:
             print('Nonlinear iterations:')
         while (err > self.err_tol) & (i < self.max_nonlinear_its):
             # Build system for Newton step
-            self.bc_man.apply_nonlinear(self, self.mat_man, self.T_sol)
+            self.bc_man.apply_nonlinear(self, self.mat_man, t, self.T_sol)
             self.J_c *= self.mat_man.i_m_arr
             self.F *= self.mat_man.i_m_arr
 

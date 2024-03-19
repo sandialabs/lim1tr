@@ -1,8 +1,8 @@
 Materials:
     A:
-        k: 1.
-        rho: 2000.
-        cp: 500.
+        k: 500
+        rho: 200
+        cp: 50
 
 Domain Table:
     Material Name: [A]
@@ -13,14 +13,18 @@ Boundary:
     External:
         Type: Adiabatic
     Left:
-        Type: Adiabatic
+        Type: Convection
+        T: 500.
+        h: 50.
     Right:
-        Type: Adiabatic
+        Type: Convection
+        T: 500.
+        h: 50.
 
 Time:
-    Run Time: 10.
-    T Initial: 300
-    dt: 0.1
+    Run Time: 20.0
+    Output Frequency: 1
+    T Initial: 300.
     Print Progress: 0
 
 Other:

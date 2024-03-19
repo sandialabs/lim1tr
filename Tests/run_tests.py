@@ -18,6 +18,7 @@ from reaction_test import reaction_tests
 from reaction_manager_test import reaction_manager_tests
 from sub_reaction_test import sub_reaction_tests
 from radiation_test import rad_tests
+from trans_bc import trans_bc_tests
 
 
 if __name__ == '__main__':
