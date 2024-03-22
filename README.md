@@ -44,9 +44,6 @@ Output is saved in the current working directory as a pickle file containing a l
     - "HRR": volumetric heat release rate from chemical reactions (2D array)
     - Species mass concentration rate indexed by user defined species names, if present (2D array)
 
-### Requirements
-
-
 ### User Guide
 The user guide for version 1.0 can be found at
 https://www.sandia.gov/ess-ssl/wp-content/uploads/2021/10/LIM1TR_Guide_SAND2021-12281.pdf
