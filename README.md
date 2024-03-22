@@ -2,11 +2,35 @@
 
 LIM1TR is a control volume code with 1D heat transport and reaction kinetics for modeling thermal runaway in Li-ion batteries.
 
+### Setup
+Install the following requirements, preferrably in a fresh environment. Begin with installing [Spitfire](https://github.com/sandialabs/Spitfire) following the [documentation](https://spitfire.readthedocs.io/en/latest/?badge=latest).
+
+- Python >= 3.7
+- [Spitfire](https://github.com/sandialabs/Spitfire)
+    - compilers
+    - setuptools
+    - numpy
+    - scipy
+    - matplotlib
+    - Cython
+    - sphinx
+    - numpydoc
+    - gitpython
+    - cantera
+- pandas
+- pyyaml
+
+After installing the required packages, build the tridiagonal matrix algorithm from the main LIM1TR directory with:
+
+`$ python setup.py build_ext --inplace`
+
 ### To Run  
 `$ python main_fv.py input_file_name.yaml`
 
+Setting up an alias for `python main_fv.py` is recommended.
+
 ### Output
-Output is saved in a pickle file as a list of the following objects:
+Output is saved in the current working directory as a pickle file containing a list of the following objects:
 - Dictionary of the .yaml input file
 - Dictionary of the state variables at each control volume and simulation time
     - "Time": simulation time (1D array)
@@ -21,14 +45,7 @@ Output is saved in a pickle file as a list of the following objects:
     - Species mass concentration rate indexed by user defined species names, if present (2D array)
 
 ### Requirements
-- Python 3.X
-- [Spitfire](https://github.com/sandialabs/Spitfire)
-- Numpy
-- Scipy
-- Pandas
-- Matplotlib
-- Numba
-- PyYAML
+
 
 ### User Guide
 The user guide for version 1.0 can be found at

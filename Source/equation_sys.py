@@ -9,10 +9,10 @@
 ########################################################################################
 
 import numpy as np
-import solvers
 import time
 from scipy.sparse import csc_matrix, diags, bmat, eye as speye
 from scipy.sparse.linalg import splu as superlu_factor
+from tridiag_cython import tridiag
 
 
 class eqn_sys:
@@ -150,10 +150,6 @@ class eqn_sys:
         print(self.LHS_u)
         print(self.LHS_l)
         print(self.RHS)
-
-
-    def init_tridiag_solver(self):
-        self.tridiag_solver = solvers.tridiag
 
 
     def clean(self):
@@ -318,7 +314,7 @@ class eqn_sys:
     def solve_conduction(self, residual):
         self.solve_count += 1
         t_st = time.time()
-        self.tridiag_solver(self.J_fac_l, self.J_fac_c, self.J_fac_u, residual,
+        tridiag(self.J_fac_l, self.J_fac_c, self.J_fac_u, residual,
                             self.dT, self.cp, self.dp, self.n_tot)
         self.solve_linear_time += time.time() - t_st
         return self.dT, 1, True
@@ -349,7 +345,7 @@ class eqn_sys:
         self.F[1:] += self.LHS_l[1:]*state[:-1]
 
         # Solve
-        self.tridiag_solver(self.LHS_l, self.LHS_c, self.LHS_u, self.F,
+        tridiag(self.LHS_l, self.LHS_c, self.LHS_u, self.F,
                               self.T_sol, self.cp, self.dp, self.n_tot)
         self.T_sol = state - self.T_sol
 
@@ -393,7 +389,7 @@ class eqn_sys:
             self.F *= -1
 
             # Solve
-            self.tridiag_solver(self.J_l, self.J_c, self.J_u, self.F,
+            tridiag(self.J_l, self.J_c, self.J_u, self.F,
                                   dT, self.cp, self.dp, self.n_tot)
 
             # Calculate error
