@@ -43,9 +43,6 @@ class lim1tr_model:
         # Initialize equation system
         eqn_sys = equation_sys.eqn_sys(mat_man, cond_man, bc_man, grid_man, reac_man, time_opts)
 
-        # Initialize linear solver (for numba)
-        eqn_sys.init_tridiag_solver()
-
         # Solve system
         if 'Steady' in time_opts['Solution Mode']:
             solvers.steady_solve(eqn_sys)
