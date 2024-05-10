@@ -3,7 +3,7 @@
 LIM1TR is a control volume code with 1D heat transport and reaction kinetics for modeling thermal runaway in Li-ion batteries.
 
 ### Setup
-Install the following requirements, preferrably in a fresh environment. Begin with installing [Spitfire](https://github.com/sandialabs/Spitfire) following the [documentation](https://spitfire.readthedocs.io/en/latest/?badge=latest).
+Install the following requirements, preferably in a fresh environment. Begin with installing [Spitfire](https://github.com/sandialabs/Spitfire) following the [documentation](https://spitfire.readthedocs.io/en/latest/?badge=latest).
 
 - Python >= 3.7
 - [Spitfire](https://github.com/sandialabs/Spitfire)
@@ -38,11 +38,11 @@ Output is saved in the current working directory as a pickle file containing a l
     - "Layer Map": a map of the first and last control volume indies in each layer (dictionary)
     - "Temperature": temperature (2D array)
     - "Interface Temperature": temperature at each material interface (2D array)
-    - Species mass concentration indexed by user defined species names, if present (2D array)
+    - Species mass concentration indexed by user-defined species names, if present (2D array)
 - Dictionary of the rate of change of state variables with respect to time at each control volume and simulation time
     - "Time": simulation time (1D array)
     - "HRR": volumetric heat release rate from chemical reactions (2D array)
-    - Species mass concentration rate indexed by user defined species names, if present (2D array)
+    - Species mass concentration rate indexed by user-defined species names, if present (2D array)
 
 ### User Guide
 The user guide for version 1.0 can be found at
