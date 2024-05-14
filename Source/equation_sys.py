@@ -413,7 +413,7 @@ class eqn_sys:
 
 
     def print_statistics(self):
-        print('LIM1TR Stastics:')
+        print('LIM1TR Statistics:')
         print('  RHS Assembly')
         print(f'- Conduction (s)    : {self.time_conduction:0.3f}')
         print(f'  - Apply (s)       : {self.cond_apply_time:0.3f}')
