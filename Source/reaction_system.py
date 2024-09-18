@@ -9,7 +9,7 @@
 ########################################################################################
 
 import numpy as np
-import reaction_models
+import time
 
 
 class reaction_system:
@@ -34,6 +34,13 @@ class reaction_system:
             aug_row = aug_row*0.
         self.aug_mat = np.concatenate((aug_row, self.frac_mat), axis=0)
 
+        # Timers
+        self.concentration_time = 0.0
+        self.rate_time = 0.0
+        self.remaining_time = 0.0
+        self.con_times = np.zeros(self.n_rxn)
+        self.rate_times = np.zeros(self.n_rxn)
+
 
     def set_temperature_ode(self, use_dsc):
         if use_dsc:
@@ -50,11 +57,16 @@ class reaction_system:
         that does not require division by the mass matrix
         '''
         # Calculate concentration function (n_rxn, n_nodes)
+        t_st = time.time()
         my_conc = self.evaluate_concentration_functions(species_mat)
+        self.concentration_time += time.time() - t_st
 
         # Calculate rate constant (n_rxn, n_nodes)
+        t_st = time.time()
         my_k = self.evaluate_rate_constant(T_arr)
+        self.rate_time += time.time() - t_st
 
+        t_st = time.time()
         # Reaction rate (n_rxn, n_nodes)
         my_r = my_k*my_conc
 
@@ -63,6 +75,7 @@ class reaction_system:
 
         # Temperature ODE (n_nodes)
         dT_dt = self.temperature_ode(my_r)
+        self.remaining_time += time.time() - t_st
 
         return dT_dt, ds_dt
 
@@ -92,7 +105,9 @@ class reaction_system:
     def evaluate_rate_constant(self, T_arr):
         my_k = np.zeros([self.n_rxn, T_arr.shape[0]])
         for ii in range(self.n_rxn):
+            t_st = time.time()
             my_k[ii,:] = self.model_list[ii].evaluate_rate_constant(T_arr)
+            self.rate_times[ii] += time.time() - t_st
         return my_k
 
 
@@ -108,7 +123,9 @@ class reaction_system:
         the concentration function'''
         my_conc = np.zeros([self.n_rxn, species_mat.shape[1]])
         for ii in range(self.n_rxn):
+            t_st = time.time()
             my_conc[ii,:] = self.model_list[ii].concentration_function(species_mat)
+            self.con_times[ii] += time.time() - t_st
         return my_conc
 
 

@@ -11,7 +11,6 @@
 import numpy as np
 import reaction_system
 import reaction_system_helper
-import reaction_models
 import reaction_layer
 from reaction_model_factory import rxn_model_factory
 
@@ -163,3 +162,20 @@ class reaction_manager:
             R_jac[:,:,b1:b2] = self.cells[i].evaluate_jacobian(t, state)
 
         return R_jac
+
+
+    def print_timings(self):
+        for i in range(len(self.reaction_systems)):
+            print(f'  - System {i+1}')
+            con_time = self.reaction_systems[i].concentration_time
+            rate_time = self.reaction_systems[i].rate_time
+            rem_time = self.reaction_systems[i].remaining_time
+            con_times = self.reaction_systems[i].con_times
+            rate_times = self.reaction_systems[i].rate_times
+            print(f'    - Conc (s)      : {con_time:0.3f}')
+            for ii in range(self.reaction_systems[i].n_rxn):
+                print(f'      - Rxn {ii+1} (s)   : {con_times[ii]:0.3f}')
+            print(f'    - Rate (s)      : {rate_time:0.3f}')
+            for ii in range(self.reaction_systems[i].n_rxn):
+                print(f'      - Rxn {ii+1} (s)   : {rate_times[ii]:0.3f}')
+            print(f'    - Other (s)     : {rem_time:0.3f}')

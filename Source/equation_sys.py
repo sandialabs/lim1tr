@@ -422,6 +422,7 @@ class eqn_sys:
         print(f'  - NL Parts (s)    : {self.nlbc_time:0.3f}')
         if self.reac_man:
             print(f'- Reaction (s)      : {self.time_reaction:0.3f}')
+            self.reac_man.print_timings()
         print(f'- Calls             : {self.rhs_count}')
 
         print('\n  Jacobian Assembly')
