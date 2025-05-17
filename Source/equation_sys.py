@@ -12,6 +12,7 @@ import numpy as np
 import time
 from scipy.sparse import csc_matrix, diags, bmat, eye as speye
 from scipy.sparse.linalg import splu as superlu_factor
+from scipy.sparse.linalg import inv
 from tridiag_cython import tridiag
 
 
@@ -97,9 +98,8 @@ class eqn_sys:
         self.setup_count = 0
         self.solve_count = 0
 
-        # Create operator and identity
+        # Create lhs inverse operator and identity
         self._lhs_inverse_operator = None
-        self._I = csc_matrix(speye(self.n_tot*self.dof_node))
 
         # Initialize Jacobian
         ones = np.ones(self.n_tot)
@@ -107,10 +107,7 @@ class eqn_sys:
         T_jac = csc_matrix(diags([ones[1:], ones, ones[:-1]], [-1, 0, 1]))
 
         if self.reac_man:
-            T_jac_inds = csc_matrix(diags([
-                diag_ind[1:],
-                diag_ind[:-1] + self.n_tot],
-                [-1, 1], dtype=int))
+            self._I = csc_matrix(speye(self.n_tot + self.reac_man.n_species*self.reac_man.n_rxn_nodes))
             R_jac_inds = np.zeros([self.dof_node, self.dof_node, self.n_tot], dtype=int)
             R_flat_inds = np.arange(self.dof_node*self.dof_node*self.n_tot, dtype=int) + 2*self.n_tot
             R_jac_all_inds = R_flat_inds.reshape([self.dof_node, self.dof_node, self.n_tot])
@@ -128,15 +125,64 @@ class eqn_sys:
                 row = []
                 ind_row = []
                 for j in range(self.dof_node):
-                    row.append(csc_matrix(diags(R_jac[i,j,:])))
-                    ind_row.append(csc_matrix(diags(R_jac_inds[i,j,:], dtype=int)))
+                    if i == 0 and j == 0:
+                        row.append(T_jac)
+                        T_jac_inds = csc_matrix(diags([
+                            diag_ind[1:],
+                            R_jac_inds[i,j,:],
+                            diag_ind[:-1] + self.n_tot],
+                            [-1, 0, 1], dtype=int))
+                        ind_row.append(T_jac_inds)
+                    elif i == 0:
+                        nodes = np.arange(self.n_tot)
+                        row_i = np.zeros(self.reac_man.n_rxn_nodes)
+                        col_i = np.arange(self.reac_man.n_rxn_nodes)
+                        jac_data = np.zeros(self.reac_man.n_rxn_nodes)
+                        ind_data = np.zeros(self.reac_man.n_rxn_nodes)
+                        for k in range(self.reac_man.n_cells):
+                            b1, b2 = self.reac_man.cells[k].bounds
+                            o1 = self.reac_man.cells[k].offset
+                            o2 = o1 + self.reac_man.cells[k].my_n
+                            row_i[o1:o2] = nodes[b1:b2]
+                            jac_data[o1:o2] = R_jac[i,j,b1:b2]
+                            ind_data[o1:o2] = R_jac_inds[i,j,b1:b2]
+                        row.append(csc_matrix((jac_data, (row_i, col_i)), shape=(self.n_tot, self.reac_man.n_rxn_nodes)))
+                        ind_row.append(csc_matrix((ind_data, (row_i, col_i)), shape=(self.n_tot, self.reac_man.n_rxn_nodes), dtype=int))
+                    elif j == 0:
+                        nodes = np.arange(self.n_tot)
+                        row_i = np.arange(self.reac_man.n_rxn_nodes)
+                        col_i = np.zeros(self.reac_man.n_rxn_nodes)
+                        jac_data = np.zeros(self.reac_man.n_rxn_nodes)
+                        ind_data = np.zeros(self.reac_man.n_rxn_nodes)
+                        for k in range(self.reac_man.n_cells):
+                            b1, b2 = self.reac_man.cells[k].bounds
+                            o1 = self.reac_man.cells[k].offset
+                            o2 = o1 + self.reac_man.cells[k].my_n
+                            col_i[o1:o2] = nodes[b1:b2]
+                            jac_data[o1:o2] = R_jac[i,j,b1:b2]
+                            ind_data[o1:o2] = R_jac_inds[i,j,b1:b2]
+                        row.append(csc_matrix((jac_data, (row_i, col_i)), shape=(self.reac_man.n_rxn_nodes, self.n_tot)))
+                        ind_row.append(csc_matrix((ind_data, (row_i, col_i)), shape=(self.reac_man.n_rxn_nodes, self.n_tot), dtype=int))
+                    else:
+                        nodes = np.arange(self.n_tot)
+                        row_i = np.arange(self.reac_man.n_rxn_nodes)
+                        col_i = np.arange(self.reac_man.n_rxn_nodes)
+                        jac_data = np.zeros(self.reac_man.n_rxn_nodes)
+                        ind_data = np.zeros(self.reac_man.n_rxn_nodes)
+                        for k in range(self.reac_man.n_cells):
+                            b1, b2 = self.reac_man.cells[k].bounds
+                            o1 = self.reac_man.cells[k].offset
+                            o2 = o1 + self.reac_man.cells[k].my_n
+                            jac_data[o1:o2] = R_jac[i,j,b1:b2]
+                            ind_data[o1:o2] = R_jac_inds[i,j,b1:b2]
+                        row.append(csc_matrix((jac_data, (row_i, col_i)), shape=(self.reac_man.n_rxn_nodes, self.reac_man.n_rxn_nodes)))
+                        ind_row.append(csc_matrix((ind_data, (row_i, col_i)), shape=(self.reac_man.n_rxn_nodes, self.reac_man.n_rxn_nodes), dtype=int))
                 blocks.append(row)
                 ind_blocks.append(ind_row)
-            blocks[0][0] += T_jac
-            ind_blocks[0][0] += T_jac_inds
             self.jac = bmat(blocks, format='csc')
             self.ind_jac = bmat(ind_blocks, format='csc')
         else:
+            self._I = csc_matrix(speye(self.n_tot))
             self.jac = T_jac
             self.ind_jac = csc_matrix(diags([
                 diag_ind[1:],
@@ -293,6 +339,28 @@ class eqn_sys:
         self.solve_count += 1
         t_st = time.time()
         l_op_solve = self._lhs_inverse_operator.solve(residual)
+        self.solve_linear_time += time.time() - t_st
+        return l_op_solve, 1, True
+
+
+    def direct_setup(self, t, state, prefactor):
+        self.setup_count += 1
+        t_st = time.time()
+        self.clean()
+        self.clean_nonlinear()
+        self.clean_time += time.time() - t_st
+
+        self.setup_jacobian(t, state)
+
+        t_st = time.time()
+        self._lhs_inverse_operator = inv(prefactor * self.jac - self._I)
+        self.factor_superlu_time += time.time() - t_st
+
+
+    def direct_solve(self, residual):
+        self.solve_count += 1
+        t_st = time.time()
+        l_op_solve = self._lhs_inverse_operator.dot(residual)
         self.solve_linear_time += time.time() - t_st
         return l_op_solve, 1, True
 

@@ -52,7 +52,7 @@ class reaction_manager:
             err_str = 'Initial mass fractions do not sum to 1.0'
             raise ValueError(err_str)
 
-        # Set names, weights, and initial densities
+        # Set names, weights, and initial mass fractions
         self.n_species = len(spec_dict['Names'])
         self.species_name_list = spec_dict['Names']
         self.mat_name = spec_dict['Material Name']
@@ -61,16 +61,7 @@ class reaction_manager:
         my_mat = mat_man.get_material(spec_dict['Material Name'])
         rho = my_mat.rho
 
-        self.initial_density = np.zeros(self.n_tot*self.n_species)
-        for i in range(self.n_species):
-            name = self.species_name_list[i]
-            species_density = np.zeros(self.n_tot)
-            self.species_rate[name] = np.zeros(self.n_tot)
-            for j in range(self.n_tot):
-                if self.mat_name == self.mat_nodes[j]:
-                    species_density[j] = spec_dict['Initial Mass Fraction'][i]*rho
-            self.species_density[name] = species_density
-            self.initial_density[i*self.n_tot:(i+1)*self.n_tot] = species_density
+        # Arrays for hrr and temperature rate
         self.heat_release_rate = np.zeros(self.n_tot)
         self.temperature_rate = np.zeros(self.n_tot)
 
@@ -85,15 +76,33 @@ class reaction_manager:
         self.n_cells = 0
         self.first_node_list = self.first_node_list + [self.n_tot]
         self.cells = []
+        self.n_rxn_nodes = 0
         for k in range(len(mat_man.layer_names)):
             if self.mat_name == mat_man.layer_names[k]:
                 self.n_cells += 1
-                self.cells.append(reaction_layer.reaction_layer(self.first_node_list[k:k+2], self.n_tot))
+                self.cells.append(reaction_layer.reaction_layer(self.first_node_list[k:k+2], self.n_rxn_nodes, self.n_tot))
+                self.n_rxn_nodes += self.cells[-1].my_n
+
+        # Set the total number of rxn nodes on each layer
+        for k in range(self.n_cells):
+            self.cells[k].set_n_rxn_nodes(self.n_rxn_nodes)
+
+        # Set the initial density state after the number of rxn nodes has been determined
+        self.initial_density = np.zeros(self.n_rxn_nodes*self.n_species)
+        for i in range(self.n_species):
+            name = self.species_name_list[i]
+            species_density = np.full(self.n_rxn_nodes, spec_dict['Initial Mass Fraction'][i]*rho)
+            self.species_rate[name] = np.zeros(self.n_rxn_nodes)
+            self.species_density[name] = species_density
+            self.initial_density[i*self.n_rxn_nodes:(i+1)*self.n_rxn_nodes] = species_density
 
 
     def load_reactions(self, rxn_dict):
         self.n_rxn = len(rxn_dict.keys())
         rxn_nums = sorted(rxn_dict.keys())
+
+        # TODO: loop over species and identify which aren't involved in reactions. Don't count these towards n_species.
+        # Print out a message saying which species were excluded.
 
         # Build reaction system here
         #   frac_mat: converts reaction rates from total conversion to specific species
@@ -145,12 +154,14 @@ class reaction_manager:
 
     def right_hand_side(self, t, state):
         RHS_T = np.zeros(self.n_tot)
-        RHS_species = np.zeros([self.n_species, self.n_tot])
+        RHS_species = np.zeros([self.n_species, self.n_rxn_nodes])
         for i in range(self.n_cells):
             T_part, s_part = self.cells[i].evaluate_rhs(t, state)
             b1, b2 = self.cells[i].bounds
             RHS_T[b1:b2] = T_part
-            RHS_species[:,b1:b2] = s_part
+            o1 = self.cells[i].offset
+            o2 = o1 + self.cells[i].my_n
+            RHS_species[:,o1:o2] = s_part
 
         return RHS_T, RHS_species.flatten()
 
