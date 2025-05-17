@@ -35,17 +35,22 @@ class data_manager:
     def format_data(self, t, q):
         # Format data into nice dictionaries
         self.data_dict['Time'] = t
-        for i in range(len(self.dof_name_list)):
-            self.data_dict[self.dof_name_list[i]] = q[:,i*self.n_tot:(i+1)*self.n_tot]
+        self.data_dict[self.dof_name_list[0]] = q[:,:self.n_tot]
+        if self.reac_present:
+            for i in range(1,len(self.dof_name_list)):
+                self.data_dict[self.dof_name_list[i]] = np.zeros([t.shape[0], self.n_tot])
+                for k in range(self.reac_man.n_cells):
+                    b1, b2 = self.reac_man.cells[k].bounds
+                    o1 = self.n_tot + self.reac_man.cells[k].offset + (i-1)*self.reac_man.n_rxn_nodes
+                    o2 = o1 + self.reac_man.cells[k].my_n
+                    self.data_dict[self.dof_name_list[i]][:,b1:b2] = q[:,o1:o2]
+            self.calculate_rates(t, q)
 
         T_interface = np.zeros([t.shape[0], len(self.mint_list) - 1])
         for m in range(len(self.mint_list) - 1):
             tmp_ind = self.mint_list[m]
             T_interface[:,m] = 0.5*(q[:, tmp_ind] + q[:, tmp_ind + 1])
         self.data_dict['Interface Temperature'] = T_interface
-
-        if self.reac_present:
-            self.calculate_rates(t, q)
 
 
     def calculate_rates(self, t, q):
@@ -59,11 +64,17 @@ class data_manager:
             RHS_T, RHS_species = self.reac_man.right_hand_side(t[i], q[i])
             dq_dt[i,:] = np.hstack([RHS_T, RHS_species])
 
-        for i in range(len(self.dof_name_list)):
-            my_dof = self.dof_name_list[i]
-            if 'Temperature' in self.dof_name_list[i]:
-                my_dof = 'HRR'
-            self.rate_dict[my_dof] = dq_dt[:,i*self.n_tot:(i+1)*self.n_tot]
+        my_dof = self.dof_name_list[0]
+        if 'Temperature' in self.dof_name_list[0]:
+            my_dof = 'HRR'
+        self.rate_dict[my_dof] = dq_dt[:,:self.n_tot]
+        for i in range(1,len(self.dof_name_list)):
+            self.rate_dict[self.dof_name_list[i]] = np.zeros([t.shape[0], self.n_tot])
+            for k in range(self.reac_man.n_cells):
+                b1, b2 = self.reac_man.cells[k].bounds
+                o1 = self.n_tot + self.reac_man.cells[k].offset + (i-1)*self.reac_man.n_rxn_nodes
+                o2 = o1 + self.reac_man.cells[k].my_n
+                self.rate_dict[self.dof_name_list[i]][:,b1:b2] = dq_dt[:,o1:o2]
 
 
     def write_data(self):

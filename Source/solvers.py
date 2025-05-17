@@ -32,7 +32,7 @@ def transient_solve(eqn_sys, verbose=True):
     else:
         linear_setup=eqn_sys.setup_conduction
         linear_solve=eqn_sys.solve_conduction
-    method=KennedyCarpenterS6P4Q3(SimpleNewtonSolver())
+    method=KennedyCarpenterS6P4Q3(SimpleNewtonSolver(norm_weighting=eqn_sys.norm_weighting))
 
     t_st = time.time()
     q = odesolve(eqn_sys.right_hand_side,

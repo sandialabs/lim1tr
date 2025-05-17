@@ -1,0 +1,55 @@
+Materials:
+    A:
+        k: 1.
+        rho: 2000.
+        cp: 500.
+    B:
+        k: 1.
+        rho: 2000.
+        cp: 500.
+
+Species:
+    Names: ['AA', 'BB']
+    Initial Mass Fraction: [1.0, 0.0]
+    Molecular Weights: [4., 2.]
+    Material Name: A
+
+Reactions:
+    1:
+        A: 1e7
+        E: 10000.
+        R: 1
+        H: -100000
+        Reactants:
+            'AA': 1
+        Products:
+            'BB': 2
+        Orders:
+            'AA': 1
+        Type: 'Basic'
+
+Domain Table:
+    Material Name: [B, A]
+    Thickness: [0.04, 0.02]
+    dx: [0.01, 0.01]
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Convection
+        h: 100.
+        T: 800.
+    Right:
+        Type: Convection
+        h: 100.
+        T: 400.
+
+Time:
+    Run Time: 400.0
+    T Initial: 400
+    # dt: 0.1
+
+Other:
+    Y Dimension: 0.01
+    Z Dimension: 0.01

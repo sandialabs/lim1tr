@@ -17,6 +17,8 @@ sys.path.append('../Source')
 import conduction
 import boundary
 import equation_sys
+sys.path.append('../')
+import main_fv
 
 
 class build_tests(unittest.TestCase):
@@ -110,6 +112,29 @@ class build_tests(unittest.TestCase):
 
         passing = False
         err_tot = sum([err_c, err_r, err_l, err_u])
+        self.assertTrue(err_tot < 10e-12, '\tFailed with error {:0.1e}\n'.format(err_tot))
+
+
+    def test_jac_index_mapping(self):
+        print('\nTesting Jacobian index mapping...')
+        model = main_fv.lim1tr_model('./Inputs/simpler_source.yaml')
+        mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.parser.apply_parse()
+
+        # Evaluate properties
+        mat_man.eval_props()
+
+        # Initialize conduction manager
+        cond_man = conduction.conduction_manager(grid_man)
+
+        # Initialize equation system
+        eqn_sys = equation_sys.eqn_sys(mat_man, cond_man, bc_man, grid_man, reac_man, time_opts)
+        eqn_sys.setup_jacobian(0, eqn_sys.initial_state)
+
+        # np.set_printoptions(precision=5, suppress=True, linewidth=220)
+        # print(eqn_sys.jac.todense())
+        eqn_sys.jac.data = eqn_sys.ind_jac.data
+        Jac_diff = np.abs(eqn_sys.jac.todense() - eqn_sys.ind_jac.todense())
+        err_tot = np.sum(Jac_diff)
         self.assertTrue(err_tot < 10e-12, '\tFailed with error {:0.1e}\n'.format(err_tot))
 
 

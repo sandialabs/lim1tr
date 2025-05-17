@@ -13,12 +13,17 @@ import time
 
 
 class reaction_layer:
-    def __init__(self, bounds, n_tot):
+    def __init__(self, bounds, offset, n_tot):
         '''setup'''
         self.bounds = bounds
         self.n_tot = n_tot
         self.my_n = bounds[1] - bounds[0]
+        self.offset = 1*offset
         self.slice_time = 0
+
+
+    def set_n_rxn_nodes(self, n_rxn_nodes):
+        self.n_rxn_nodes = 1*n_rxn_nodes
 
 
     def set_reaction_system(self, reaction_system):
@@ -52,7 +57,7 @@ class reaction_layer:
 
         species_mat = np.zeros([self.n_species, self.my_n])
         for i in range(self.n_species):
-            b_1 = self.bounds[0] + (i + 1)*self.n_tot
+            b_1 = self.n_tot + self.offset + i*self.n_rxn_nodes
             b_2 = b_1 + self.my_n
             species_mat[i,:] = state[b_1:b_2]
         self.slice_time += time.time() - t_st
