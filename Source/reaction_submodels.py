@@ -85,8 +85,14 @@ class damkohler_limiter(rxn_submodel):
         else:
             a_edges = self.rxn_info['a_edges']
 
+        # Check for solid particle density
+        if 'rho' in dam_info.keys():
+            rho_s = dam_info['rho']
+        else:
+            rho_s = self.material_info['rho']
+
         # Combine rate constant and diffusion coefficient to form the Damkohler number
-        C_D = (r_o - r_i)*r_o/(r_i*a_edges*self.material_info['rho'])
+        C_D = (r_o - r_i)*r_o/(r_i*a_edges*rho_s)
         A_D_part = dam_info['D']*np.exp(dam_info['E']/(self.rxn_info['R']*T_ref_d))
         self.AD = C_D*float(dam_info['A'])/A_D_part
         self.EDoR = (float(self.rxn_info['E']) - float(dam_info['E']))/float(self.rxn_info['R'])
@@ -118,9 +124,15 @@ class damkohler_limiter_ri(rxn_submodel):
         self.sp_o_13 = sp_o**(1/3)
         self.sp_13 = sp_o**(1/3)
 
+        # Check for solid particle density
+        if 'rho' in dam_info.keys():
+            rho_s = dam_info['rho']
+        else:
+            rho_s = self.material_info['rho']
+
         # Combine rate constant and diffusion coefficient to form the Damkohler number
         A_D_part = dam_info['D']*np.exp(dam_info['E']/(self.rxn_info['R']*T_ref_d))
-        self.AD = r_o*float(dam_info['A'])/(a_edges*self.material_info['rho']*A_D_part)
+        self.AD = r_o*float(dam_info['A'])/(a_edges*rho_s*A_D_part)
         self.EDoR = (float(self.rxn_info['E']) - float(dam_info['E']))/float(self.rxn_info['R'])
 
 
