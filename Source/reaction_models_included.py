@@ -102,8 +102,9 @@ class zcrit(reaction_model_base.rxn_model):
         CED = 0.31
 
         # Calculated parameters needed for model
-        self.a_e_crit = CED*BET_C6**nEDexp
-        self.rxn_info['a_edges'] = self.a_e_crit*1000  # specific edge area in m2/kg
+        a_e = CED*BET_C6**nEDexp                # specific edge area in m2/g
+        self.rxn_info['a_edges'] = a_e*1000     # specific edge area in m2/kg
+        self.a_e_crit = a_e/1                   # normalized unitless edge area for scaling the rate
         self.z_c = (2*6*12.011)/(self.molecular_weights['Li2CO3']*rho*Y_Graphite*BET_C6**0.5)
 
 
