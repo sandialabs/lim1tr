@@ -23,6 +23,7 @@ class reaction_manager:
         self.mat_nodes = grid_man.mat_nodes
         self.first_node_list = grid_man.first_node_list
         self.cross_area = other_opts['Y Dimension']*other_opts['Z Dimension']
+        self.mass_loss = False
 
         # Set DSC Mode
         self.dsc_mode = 0
@@ -95,6 +96,23 @@ class reaction_manager:
             self.species_rate[name] = np.zeros(self.n_rxn_nodes)
             self.species_density[name] = species_density
             self.initial_density[i*self.n_rxn_nodes:(i+1)*self.n_rxn_nodes] = species_density
+
+        # Check for the presense of gas species
+        if 'Gas Species' in spec_dict.keys():
+            for gas in spec_dict['Gas Species']:
+                if gas not in self.species_name_list:
+                    err_str = f'Gas {gas} not found in list of species names.'
+                    raise(ValueError(err_str))
+            self.solid_inds = []
+            self.gas_inds = []
+            for i in range(self.n_species):
+                if self.species_name_list[i] in spec_dict['Gas Species']:
+                    self.gas_inds.append(i)
+                else:
+                    self.solid_inds.append(i)
+            self.mass_loss = True
+        else:
+            self.mass_loss = False
 
 
     def load_reactions(self, rxn_dict):
@@ -173,6 +191,24 @@ class reaction_manager:
             R_jac[:,:,b1:b2] = self.cells[i].evaluate_jacobian(t, state)
 
         return R_jac
+
+
+    def update_rho(self, state, mat_man):
+        for i in range(self.n_cells):
+            T_arr, species_mat = self.cells[i].slice_state(state)
+
+            # Sum solid species on cell
+            b_1, b_2 = self.cells[i].bounds
+            mat_man.rho_arr[b_1:b_2] = np.sum(species_mat[self.solid_inds,:], axis=0)
+
+        mat_man.update_rho_arrays()
+
+
+    def solid_product(self, R_jac, F_rho):
+        for i in range(self.n_cells):
+            b1, b2 = self.cells[i].bounds
+            for s in self.solid_inds:
+                R_jac[0,s,b1:b2] -= F_rho[b1:b2]
 
 
     def print_timings(self):
