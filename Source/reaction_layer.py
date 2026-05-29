@@ -32,13 +32,10 @@ class reaction_layer:
 
 
     def evaluate_rhs(self, t, state):
-        # State should already be reshaped
         # Slice state using bounds
         T_arr, species_mat = self.slice_state(state)
 
         # Evalutate reaction system for those nodes
-        # Just pass in a reshaped state, then slice these nodes and feed
-        # slice directly
         return self.reaction_system.evaluate_ode(t, T_arr, species_mat)
 
 

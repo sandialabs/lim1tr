@@ -38,7 +38,6 @@ class material_manager:
         self.rho_arr = np.zeros(self.n_tot)
         self.cp_arr = np.zeros(self.n_tot)
         self.k_arr = np.zeros(self.n_tot - 1)
-        self.m_arr = np.zeros(self.n_tot)
 
         self.interface_ids = grid_man.interface_ids
         self.internal_ids = grid_man.internal_ids
@@ -81,10 +80,8 @@ class material_manager:
             # Evaluate cp
             self.cp_arr[i] = self.get_material(self.mat_nodes[i]).eval_cp()
 
-        # Evaluate the mass matrix
-        self.m_arr = self.rho_arr*self.cp_arr*self.dx_arr
-        self.i_m_arr = 1/self.m_arr
-        self.i_rcp = self.i_m_arr*self.dx_arr
+        # Evaluate the mass matrix terms
+        self.update_rho_arrays()
 
         # Evaluate interface properties
         # Internal interfaces
@@ -103,8 +100,17 @@ class material_manager:
             m += 1
 
 
+    def update_rho_arrays(self):
+        '''Update density dependant arrays
+        '''
+        # Evaluate the mass matrix terms
+        rho_cp = self.rho_arr*self.cp_arr
+        self.i_rcp = 1/rho_cp
+        self.i_m_arr = self.i_rcp/self.dx_arr
+
+
 class fv_material:
-    def __init__(self,m_name):
+    def __init__(self, m_name):
         '''Generic material.
         Allows setting and evaluation of properties.
         Eventually this could accomodate temperature

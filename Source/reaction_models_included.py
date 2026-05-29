@@ -10,12 +10,13 @@
 
 import numpy as np
 import reaction_model_base
-
+np.seterr(over='raise')
 
 rxn_model_dictionary_included = {
     'Basic': 'basic_rxn',
     'Short': 'simple_short',
-    'Zcrit': 'zcrit'
+    'Zcrit': 'zcrit',
+    'Simple Mass Loss': 'simple_mass_loss'
 }
 
 class basic_rxn(reaction_model_base.rxn_model):
@@ -120,7 +121,13 @@ class zcrit(reaction_model_base.rxn_model):
         except ValueError:
             print(species_mat[self.name_map['Li2CO3'],:])
             print(species_mat[self.name_map['C6Li'],:])
+        except FloatingPointError:
+            print(self.name_map)
+            print(tau)
+            print(species_mat)
+            raise(ValueError)
         return con_fun
+
 
     def concentration_derivative(self, species_mat):
         '''Derivative of critical thickness anode model
@@ -140,3 +147,36 @@ class zcrit(reaction_model_base.rxn_model):
         dr_ds_part[self.name_map['C6Li'],:] = crit_fun
 
         return dr_ds_part
+
+
+class simple_mass_loss(reaction_model_base.rxn_model):
+    def setup(self):
+        self.T_cut = self.rxn_info['Cutoff Temperature']
+        self.sp_ind = self.name_map['Inert']
+        self.sp_50 = 5.0
+
+
+    def concentration_function(self, species_mat):
+        '''Basic concentration function.
+        Product of rho^mu
+        '''
+        # return np.ones(species_mat.shape[1])
+        return species_mat[self.sp_ind,:]/(self.sp_50 + species_mat[self.sp_ind,:])
+
+
+    def concentration_derivative(self, species_mat):
+        '''Derivative of basic concentration function
+        w.r.t. each species.
+        '''
+        # return np.zeros(species_mat.shape)
+        dr_ds_part = np.zeros(species_mat.shape)
+        dr_ds_part[self.sp_ind,:] = self.sp_50/(self.sp_50 + species_mat[self.sp_ind,:])**2
+        return dr_ds_part
+
+
+    def evaluate_rate_constant(self, T):
+        return self.A*0.5*(np.tanh(T - self.T_cut) + 1)
+
+
+    def evaluate_rate_constant_derivative(self, T, my_k):
+        return self.A*0.5*(1 - np.tanh(T - self.T_cut)**2)

@@ -45,8 +45,10 @@ class eqn_sys:
 
         # Reaction manager
         self.reac_man = reac_man
+        self.mass_loss = False
         if self.reac_man:
             self.dof_node += self.reac_man.n_species
+            self.mass_loss = self.reac_man.mass_loss
 
             # Build initial state
             self.initial_state = np.hstack([
@@ -75,6 +77,7 @@ class eqn_sys:
         self.J_u = np.zeros(self.n_tot)
         self.J_l = np.zeros(self.n_tot)
         self.F = np.zeros(self.n_tot)
+        self.F_last = np.zeros(self.n_tot)
 
         self.J_fac_c = np.zeros(self.n_tot)
         self.J_fac_l = np.zeros(self.n_tot)
@@ -212,12 +215,19 @@ class eqn_sys:
         self.F = np.zeros(self.n_tot)
 
 
-    def right_hand_side(self, t, state):
-        self.rhs_count += 1
+    def full_clean(self):
         t_st = time.time()
         self.clean()
         self.clean_nonlinear()
         self.clean_time += time.time() - t_st
+
+
+    def right_hand_side(self, t, state):
+        self.rhs_count += 1
+        self.full_clean()
+
+        if self.mass_loss:
+            self.reac_man.update_rho(state, self.mat_man)
 
         self.conduction_right_hand_side(t, state)
 
@@ -261,6 +271,14 @@ class eqn_sys:
 
 
     def setup_jacobian(self, t, state):
+        if self.mass_loss:
+            # Need the RHS if mass loss is present
+            # RHS will update the density
+            self.F_last = 1*self.right_hand_side(t, state)
+
+            # Clean up
+            self.full_clean()
+
         # Assemble conduction terms
         self.setup_conduction_jacobian(t, state)
 
@@ -278,6 +296,11 @@ class eqn_sys:
             if not self.reac_man.dsc_mode:
                 for j in range(self.dof_node):
                     R_jac[0,j,:] *= self.mat_man.i_rcp
+
+            if self.mass_loss:
+                # Product rule for solid species
+                F_rho = self.F_last[:self.n_tot]/self.mat_man.rho_arr
+                self.reac_man.solid_product(R_jac, F_rho)
 
             # Add in conduction contribution to center diagonal
             R_jac[0,0,:] += self.J_c
@@ -323,10 +346,7 @@ class eqn_sys:
 
     def setup_superlu(self, t, state, prefactor):
         self.setup_count += 1
-        t_st = time.time()
-        self.clean()
-        self.clean_nonlinear()
-        self.clean_time += time.time() - t_st
+        self.full_clean()
 
         self.setup_jacobian(t, state)
 
@@ -345,10 +365,7 @@ class eqn_sys:
 
     def direct_setup(self, t, state, prefactor):
         self.setup_count += 1
-        t_st = time.time()
-        self.clean()
-        self.clean_nonlinear()
-        self.clean_time += time.time() - t_st
+        self.full_clean()
 
         self.setup_jacobian(t, state)
 
@@ -367,10 +384,7 @@ class eqn_sys:
 
     def setup_conduction(self, t, state, prefactor):
         self.setup_count += 1
-        t_st = time.time()
-        self.clean()
-        self.clean_nonlinear()
-        self.clean_time += time.time() - t_st
+        self.full_clean()
 
         self.setup_conduction_jacobian(t, state)
 
