@@ -56,6 +56,12 @@ def factory(location, params, dx_arr, PA_r, mint_list):
     if not params:
         params = [{'Type': 'Adiabatic'}]
 
+    # Extract BC types for compatibility checking
+    bc_types = [param_dict['Type'].strip().lower() for param_dict in params]
+
+    # Check for incompatible BC combinations
+    check_boundary_compatibility(bc_types, location)
+
     # Create individual BC objects
     bc_objects = []
     for param_dict in params:
@@ -128,6 +134,25 @@ def check_boundary_type(bc_type, boundaries, location):
     if bc_type not in boundaries.keys():
         err_str = f'Bondary type {bc_type} for {location} boundary not found.'
         raise KeyError(err_str)
+
+
+def check_boundary_compatibility(bc_types, location):
+    """Check if multiple boundary conditions are compatible.
+
+    Adiabatic and Dirichlet BCs are mutually exclusive and cannot be combined
+    with other BC types on the same boundary location.
+    """
+    incompatible_types = {'adiabatic', 'dirichlet'}
+
+    # Check if any incompatible BC is mixed with others
+    has_incompatible = any(bc_type in incompatible_types for bc_type in bc_types)
+    has_multiple_bcs = len(bc_types) > 1
+
+    if has_incompatible and has_multiple_bcs:
+        incompatible_found = [bc_type for bc_type in bc_types if bc_type in incompatible_types]
+        err_str = f'Cannot combine {incompatible_found} boundary condition(s) with other BC types on {location} boundary. '
+        err_str += 'Adiabatic and Dirichlet BCs must be used alone.'
+        raise ValueError(err_str)
     
 
 def parse_temporal_param(temporal_param):

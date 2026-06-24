@@ -66,8 +66,11 @@ class end_convection(end_bc):
     def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds end convection BC terms to system.
         '''
-        phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
-        c_end = self.h*phi/(self.h + phi)
+        if len(self.dx_arr) == 1:
+            c_end = self.h
+        else:
+            phi = 2*mat_man.k_arr[self.k_ind]/self.dx_arr[self.n_ind]
+            c_end = self.h*phi/(self.h + phi)
         eqn_sys.LHS_c[self.n_ind] += c_end
         eqn_sys.RHS[self.n_ind] += c_end*self.T
 
