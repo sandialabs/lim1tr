@@ -23,6 +23,10 @@ class bc_base:
     def post_step(self):
         return 0
 
+    @property
+    def is_linear(self):
+        return True
+
 
 class end_bc(bc_base):
     def __init__(self, dx_arr, my_end):
@@ -85,6 +89,10 @@ class end_radiation(end_bc):
         self.T_ext_4 = self.T**4
         self.name += '_radiation'
 
+    @property
+    def is_linear(self):
+        return False
+
 
     def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds end radiation BC terms to system.
@@ -102,6 +110,10 @@ class end_radiation_arc(end_radiation):
         self.T_old = 1.*T
         self.T_ext = 1.*T
         self.name += '_arc'
+
+    @property
+    def is_linear(self):
+        return False
 
 
     def update_params(self, T, dt):
@@ -147,6 +159,10 @@ class ext_radiation(ext_bc):
         self.T_ext_4 = self.T**4
         self.C = self.dx_PA_r*self.sigma_eps
         self.name += '_radiation'
+
+    @property
+    def is_linear(self):
+        return False
 
 
     def apply(self, eqn_sys, mat_man, t, T_state):

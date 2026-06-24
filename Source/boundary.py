@@ -35,16 +35,19 @@ class bc_manager:
         # End BCs (left and right)
         for my_end in ['Left', 'Right']:
             end_params = bnd_dict[my_end]
-            end_bc = boundary_factory.factory(my_end, end_params, self.dx_arr, self.PA_r, self.mint_list)
-            self.register_bc(end_bc)
+            end_bcs = boundary_factory.factory(my_end, end_params, self.dx_arr, self.PA_r, self.mint_list)
+            for bc in end_bcs:
+                self.register_bc(bc)
 
         # External BC
-        ext_bc = boundary_factory.factory('External', bnd_dict['External'], self.dx_arr, self.PA_r, self.mint_list)
-        self.register_bc(ext_bc)
+        ext_bcs = boundary_factory.factory('External', bnd_dict['External'], self.dx_arr, self.PA_r, self.mint_list)
+        for bc in ext_bcs:
+            self.register_bc(bc)
 
 
     def register_bc(self, bc):
-        if 'radiation' in bc.name:
+        # Use is_linear property to determine which list to use
+        if hasattr(bc, 'is_linear') and not bc.is_linear:
             self.nonlinear_boundaries.append(bc)
             self.nonlinear_flag = True
         else:
