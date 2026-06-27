@@ -27,7 +27,9 @@ class multiple_bcs_integration_test(unittest.TestCase):
             def __init__(self):
                 self.dx_arr = np.array([0.1, 0.1, 0.1])
                 self.n_tot = 3
-                self.PA_r = 1.0
+                self.L_y = 2.0
+                self.L_z = 1.0
+                self.PA_r = 2.*(self.L_y + self.L_z)/(self.L_y*self.L_z)
                 self.mint_list = []
 
         self.grid_man = MockGridManager()
@@ -118,6 +120,66 @@ class multiple_bcs_integration_test(unittest.TestCase):
         # Adiabatic BCs do get registered but don't modify the system
         total_bcs = len(self.bc_man.boundaries) + len(self.bc_man.nonlinear_boundaries)
         self.assertEqual(total_bcs, 3)  # 3 adiabatic BCs (external, left, and right)
+
+
+    def test_external_bcs_with_disjoint_faces(self):
+        '''Test that External BCs with different Faces subsets each get their own partial PA_r.'''
+        bnd_dict = {
+            'External': [
+                {
+                    'Type': 'convection',
+                    'h': 10.0,
+                    'T': 298.15,
+                    'Faces': ['Top', 'Bottom']
+                },
+                {
+                    'Type': 'convection',
+                    'h': 50.0,
+                    'T': 350.0,
+                    'Faces': ['Front', 'Back']
+                }
+            ],
+            'Left': {
+                'Type': 'adiabatic'
+            },
+            'Right': {
+                'Type': 'adiabatic'
+            }
+        }
+
+        self.bc_man.setup(bnd_dict)
+
+        ext_bcs = [bc for bc in self.bc_man.boundaries if 'ext_convection' in bc.name]
+        self.assertEqual(len(ext_bcs), 2)
+
+        top_bottom_pa_r = 2./self.grid_man.L_z
+        front_back_pa_r = 2./self.grid_man.L_y
+
+        np.testing.assert_allclose(ext_bcs[0].dx_PA_r, self.grid_man.dx_arr*top_bottom_pa_r)
+        np.testing.assert_allclose(ext_bcs[1].dx_PA_r, self.grid_man.dx_arr*front_back_pa_r)
+
+
+    def test_external_bc_without_faces_uses_full_PA_r(self):
+        '''Test that an External BC omitting Faces still gets the full PA_r (legacy behavior).'''
+        bnd_dict = {
+            'External': {
+                'Type': 'convection',
+                'h': 15.0,
+                'T': 350.0
+            },
+            'Left': {
+                'Type': 'adiabatic'
+            },
+            'Right': {
+                'Type': 'adiabatic'
+            }
+        }
+
+        self.bc_man.setup(bnd_dict)
+
+        ext_bcs = [bc for bc in self.bc_man.boundaries if 'ext_convection' in bc.name]
+        self.assertEqual(len(ext_bcs), 1)
+        np.testing.assert_allclose(ext_bcs[0].dx_PA_r, self.grid_man.dx_arr*self.grid_man.PA_r)
 
 
 if __name__ == '__main__':

@@ -40,6 +40,13 @@ ext_params = {
     'radiation': ['T', 'eps']
 }
 
+face_pa_r_dim = {
+    'top': 'L_z',
+    'bottom': 'L_z',
+    'front': 'L_y',
+    'back': 'L_y',
+}
+
 required_control_params = {
     'T Cutoff': 'T_cutoff',
     'T Location': 'T_location',
@@ -47,7 +54,7 @@ required_control_params = {
     'h Post': 'h_post'
 }
 
-def factory(location, params, dx_arr, PA_r, mint_list):
+def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None):
     # Handle single BC (backward compatibility)
     if isinstance(params, dict):
         params = [params]
@@ -77,7 +84,11 @@ def factory(location, params, dx_arr, PA_r, mint_list):
             required_params = ext_params
             check_boundary_type(bc_type, boundaries, location)
             class_ = getattr(boundary_types, boundaries[bc_type])
-            parent_bc = class_(dx_arr, PA_r)
+            if param_dict.get('Faces'):
+                bc_PA_r = compute_face_PA_r(param_dict['Faces'], L_y, L_z)
+            else:
+                bc_PA_r = PA_r
+            parent_bc = class_(dx_arr, bc_PA_r)
 
         temporal_functions = {}
         for param in required_params[bc_type]:
@@ -128,6 +139,27 @@ def factory(location, params, dx_arr, PA_r, mint_list):
 
     # Always return a list
     return bc_objects
+
+
+def compute_face_PA_r(faces, L_y, L_z):
+    '''Computes the perimeter-to-area ratio contribution for a subset of
+    Top/Bottom/Front/Back external faces. Top/Bottom span Y Dimension;
+    Front/Back span Z Dimension.
+    '''
+    dims = {'L_y': L_y, 'L_z': L_z}
+    seen = set()
+    total = 0.
+    for face in faces:
+        key = face.strip().lower()
+        if key not in face_pa_r_dim:
+            err_str = f'Unrecognized External BC face "{face}". Must be one of Top, Bottom, Front, Back.'
+            raise ValueError(err_str)
+        if key in seen:
+            err_str = f'Face "{face}" repeated in External BC Faces list.'
+            raise ValueError(err_str)
+        seen.add(key)
+        total += 1./dims[face_pa_r_dim[key]]
+    return total
 
 
 def check_boundary_type(bc_type, boundaries, location):

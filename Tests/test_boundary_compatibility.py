@@ -14,7 +14,7 @@ import os
 import numpy as np
 
 # Add the lim1tr Source directory to the path
-sys.path.insert(0, '/workspaces/project/lim1tr/Source')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../Source'))
 
 import boundary_factory
 
