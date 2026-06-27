@@ -26,6 +26,7 @@ class multiple_bcs_integration_test(unittest.TestCase):
         class MockGridManager:
             def __init__(self):
                 self.dx_arr = np.array([0.1, 0.1, 0.1])
+                self.x_node = np.array([0.05, 0.15, 0.25])
                 self.n_tot = 3
                 self.L_y = 2.0
                 self.L_z = 1.0

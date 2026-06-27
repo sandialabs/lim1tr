@@ -19,6 +19,7 @@ class bc_manager:
             grid_man (object): grid manager
         '''
         self.dx_arr = grid_man.dx_arr
+        self.x_node = grid_man.x_node
         self.n_tot = grid_man.n_tot
         self.PA_r = grid_man.PA_r  # Perimeter to cross-sectional area ratio
         self.L_y = getattr(grid_man, 'L_y', None)
@@ -42,7 +43,7 @@ class bc_manager:
                 self.register_bc(bc)
 
         # External BC
-        ext_bcs = boundary_factory.factory('External', bnd_dict['External'], self.dx_arr, self.PA_r, self.mint_list, self.L_y, self.L_z)
+        ext_bcs = boundary_factory.factory('External', bnd_dict['External'], self.dx_arr, self.PA_r, self.mint_list, self.L_y, self.L_z, self.x_node)
         for bc in ext_bcs:
             self.register_bc(bc)
 

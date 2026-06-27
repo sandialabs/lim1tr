@@ -297,3 +297,15 @@ class table_function:
 
     def __call__(self, t):
         return np.interp(t, self.table_x, self.table_y)
+
+
+class spacetime_table_function:
+    def __init__(self, x_node, table_x, table_t, table_vals):
+        from scipy.interpolate import RegularGridInterpolator
+        self.x_node = x_node
+        self.interp = RegularGridInterpolator((table_t, table_x), table_vals, bounds_error=False, fill_value=None)
+
+
+    def __call__(self, t):
+        pts = np.column_stack((np.full(self.x_node.shape, t), self.x_node))
+        return self.interp(pts)

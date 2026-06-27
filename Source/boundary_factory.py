@@ -54,7 +54,7 @@ required_control_params = {
     'h Post': 'h_post'
 }
 
-def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None):
+def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None, x_node=None):
     # Handle single BC (backward compatibility)
     if isinstance(params, dict):
         params = [params]
@@ -99,8 +99,21 @@ def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None):
                 raise KeyError(err_str)
 
             if param_type is dict:
-                initial_value, param_function = parse_temporal_param(param_dict[param])
-                temporal_functions[param] = param_function
+                pd = param_dict[param]
+                if 'XT Table' in pd:
+                    if location != 'External':
+                        err_str = f'XT Table is only supported for External boundaries, not {location}.'
+                        raise ValueError(err_str)
+                    initial_value, param_function = parse_spacetime_param(pd, x_node)
+                    temporal_functions[param] = param_function
+                elif 'X Table' in pd:
+                    if location != 'External':
+                        err_str = f'X Table is only supported for External boundaries, not {location}.'
+                        raise ValueError(err_str)
+                    initial_value = parse_spatial_param(pd, x_node)
+                else:
+                    initial_value, param_function = parse_temporal_param(pd)
+                    temporal_functions[param] = param_function
             elif param_type is float or param_type is int:
                 initial_value = param_dict[param]
             else:
@@ -197,3 +210,17 @@ def parse_temporal_param(temporal_param):
         rate = temporal_param['Rate']
         param_function = boundary_types.ramp_function(rate, initial_value)
     return initial_value, param_function
+
+
+def parse_spatial_param(spatial_dict, x_node):
+    table = np.genfromtxt(spatial_dict['X Table'], delimiter=',')
+    return np.interp(x_node, table[:,0], table[:,1])
+
+
+def parse_spacetime_param(spacetime_dict, x_node):
+    grid = np.genfromtxt(spacetime_dict['XT Table'], delimiter=',')
+    table_x = grid[0, 1:]
+    table_t = grid[1:, 0]
+    table_vals = grid[1:, 1:]
+    param_function = boundary_types.spacetime_table_function(x_node, table_x, table_t, table_vals)
+    return param_function(0.0), param_function
