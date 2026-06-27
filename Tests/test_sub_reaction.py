@@ -41,14 +41,14 @@ class sub_reaction_tests(unittest.TestCase):
 
         f_c_s = my_v[1]/(2.0 + my_v[1])
         df_c_s = np.zeros(4)
-        df_c_s[1] = 2.0/(2.0 + my_v[1])**2
+        df_c_s[1] = 2.0/(2.0 + my_v[1, 0])**2
         err += np.abs(sub_rxn.concentration_function(my_v) - f_c_s)
         err += np.sum(np.abs(sub_rxn.concentration_derivative(my_v).T - df_c_s))
 
         f_c = f_c_m*f_c_s
         df_c = np.zeros(4)
-        df_c[0] = f_c_s*df_c_m[0]
-        df_c[1] = f_c_m*df_c_s[1]
+        df_c[0] = f_c_s[0]*df_c_m[0]
+        df_c[1] = f_c_m[0]*df_c_s[1]
         my_rxn = reaction_model_factory.model_chain([main_rxn, sub_rxn])
         err += (my_rxn.concentration_function(my_v) - f_c)
         err += np.sum(np.abs(my_rxn.concentration_derivative(my_v).T - df_c))
