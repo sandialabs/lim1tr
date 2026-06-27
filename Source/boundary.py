@@ -27,7 +27,6 @@ class bc_manager:
         self.mint_list = grid_man.mint_list
         self.boundaries = []
         self.nonlinear_boundaries = []
-        self.arc_boundaries = []
         self.nonlinear_flag = False
 
 
@@ -49,8 +48,7 @@ class bc_manager:
 
 
     def register_bc(self, bc):
-        # Use is_linear property to determine which list to use
-        if hasattr(bc, 'is_linear') and not bc.is_linear:
+        if not bc.is_linear:
             self.nonlinear_boundaries.append(bc)
             self.nonlinear_flag = True
         else:
@@ -72,21 +70,3 @@ class bc_manager:
             bc.post_step()
         for bc in self.nonlinear_boundaries:
             bc.post_step()
-
-    # Stuff below this doesn't work currently
-    def update(self, T, dt):
-        for bc in self.arc_boundaries:
-            bc.update_params(T, dt)
-
-
-    def update_post_step(self):
-        for bc in self.arc_boundaries:
-            bc.update_post_step()
-
-
-    def get_bc_output(self):
-        bc_out = {}
-        for bc in self.arc_boundaries:
-            key = '{}_T'.format(bc.name)
-            bc_out[key] = bc.T_old
-        return bc_out

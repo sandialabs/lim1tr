@@ -12,23 +12,34 @@ import numpy as np
 
 
 class bc_base:
+    is_linear = True
+
     def setup_params(self):
         return 0
 
 
     def apply(self, *args):
-        return 0
+        raise NotImplementedError
 
 
     def post_step(self):
         return 0
 
-    @property
-    def is_linear(self):
-        return True
+
+class _bc_wrapper(bc_base):
+    '''Base class for BCs that wrap another BC. Forwards attribute
+    lookups (my_end, n_ind, n_opp, k_ind, is_linear, etc.) to the
+    wrapped BC so wrappers don't need to manually copy or special-case
+    them.
+    '''
+    def __getattr__(self, attr):
+        return getattr(self.bc, attr)
 
 
 class end_bc(bc_base):
+    yaml_type = 'adiabatic'
+    required_params = []
+
     def __init__(self, dx_arr, my_end):
         self.my_end = my_end.lower()
         self.name = '{}_end'.format(self.my_end)
@@ -47,7 +58,14 @@ class end_bc(bc_base):
             raise ValueError(err_str)
 
 
+    def apply(self, eqn_sys, mat_man, t, T_state):
+        return 0
+
+
 class end_dirichlet(end_bc):
+    yaml_type = 'dirichlet'
+    required_params = ['T']
+
     def setup_params(self):
         self.name += '_dirichlet'
 
@@ -59,6 +77,9 @@ class end_dirichlet(end_bc):
 
 
 class end_convection(end_bc):
+    yaml_type = 'convection'
+    required_params = ['T', 'h']
+
     def setup_params(self):
         self.name += '_convection'
 
@@ -76,6 +97,9 @@ class end_convection(end_bc):
 
 
 class end_flux(end_bc):
+    yaml_type = 'heat flux'
+    required_params = ['flux']
+
     def setup_params(self):
         self.name += '_flux'
 
@@ -83,18 +107,18 @@ class end_flux(end_bc):
     def apply(self, eqn_sys, mat_man, t, T_state):
         '''Adds heat flux bc term to end.
         '''
-        eqn_sys.RHS[self.n_ind] += self.Flux
+        eqn_sys.RHS[self.n_ind] += self.flux
 
 
 class end_radiation(end_bc):
+    yaml_type = 'radiation'
+    required_params = ['T', 'eps']
+    is_linear = False
+
     def setup_params(self):
         self.sigma_eps = 5.67e-8*self.eps
         self.T_ext_4 = self.T**4
         self.name += '_radiation'
-
-    @property
-    def is_linear(self):
-        return False
 
 
     def apply(self, eqn_sys, mat_man, t, T_state):
@@ -104,42 +128,24 @@ class end_radiation(end_bc):
         eqn_sys.F[self.n_ind] += self.sigma_eps*(T_state[self.n_ind]**4 - self.T_ext_4)
 
 
-class end_radiation_arc(end_radiation):
-    def set_params(self, eps, T, dTdt_max):
-        self.sigma_eps = 5.67e-8*eps
-        self.T_ext_4 = T**4
-        self.name += '_radiation'
-        self.dTdt_max = dTdt_max
-        self.T_old = 1.*T
-        self.T_ext = 1.*T
-        self.name += '_arc'
-
-    @property
-    def is_linear(self):
-        return False
-
-
-    def update_params(self, T, dt):
-        dTdt = (T[self.n_ind] - self.T_old)/dt
-        if dTdt > self.dTdt_max:
-            self.T_ext = dt*self.dTdt_max + self.T_old
-        else:
-            self.T_ext = 1.*T[self.n_ind]
-        self.T_ext_4 = self.T_ext**4
-
-
-    def update_post_step(self):
-        self.T_old = 1.*self.T_ext
-
-
 class ext_bc(bc_base):
+    yaml_type = 'adiabatic'
+    required_params = []
+
     def __init__(self, dx_arr, PA_r):
         self.name = 'ext'
         self.n_tot = dx_arr.shape[0]
         self.dx_PA_r = dx_arr*PA_r
 
 
+    def apply(self, eqn_sys, mat_man, t, T_state):
+        return 0
+
+
 class ext_convection(ext_bc):
+    yaml_type = 'convection'
+    required_params = ['T', 'h']
+
     def setup_params(self):
         self.name += '_convection'
 
@@ -157,15 +163,15 @@ class ext_convection(ext_bc):
 
 
 class ext_radiation(ext_bc):
+    yaml_type = 'radiation'
+    required_params = ['T', 'eps']
+    is_linear = False
+
     def setup_params(self):
         self.sigma_eps = 5.67e-8*self.eps
         self.T_ext_4 = self.T**4
         self.C = self.dx_PA_r*self.sigma_eps
         self.name += '_radiation'
-
-    @property
-    def is_linear(self):
-        return False
 
 
     def apply(self, eqn_sys, mat_man, t, T_state):
@@ -175,7 +181,7 @@ class ext_radiation(ext_bc):
         eqn_sys.F += self.C*(T_state**4 - self.T_ext_4)
 
 
-class end_temperature_control(bc_base):
+class end_temperature_control(_bc_wrapper):
     def __init__(self, bc, dx_arr, mint_list):
         self.bc = bc
         self.dx_arr = dx_arr
@@ -193,12 +199,12 @@ class end_temperature_control(bc_base):
         # Logic for the control TC location
         self.cutoff_function = self.end_cutoff
         if self.T_location == 0:
-            if 'left' in self.name:
+            if self.bc.my_end == 'left':
                 self.n_cut = self.bc.n_ind
             else:
                 self.n_cut = self.bc.n_opp
         elif self.T_location == len(self.mint_list):
-            if 'right' in self.name:
+            if self.bc.my_end == 'right':
                 self.n_cut = self.bc.n_ind
             else:
                 self.n_cut = self.bc.n_opp
@@ -231,7 +237,7 @@ class end_temperature_control(bc_base):
             self.apply = self.conv_bc.apply
 
 
-class timed_boundary(bc_base):
+class timed_boundary(_bc_wrapper):
     def __init__(self, bc, off_time):
         self.bc = bc
         self.off_time = off_time
@@ -247,17 +253,12 @@ class timed_boundary(bc_base):
         self.bc.post_step()
 
 
-class temporal_boundary(bc_base):
+class temporal_boundary(_bc_wrapper):
     def __init__(self, bc):
         self.bc = bc
         self.param_names = []
         self.param_functions = []
         self.name = self.bc.name + '_temporal'
-        if 'ext_' not in self.bc.name:
-            self.my_end = self.bc.my_end
-            self.n_ind = self.bc.n_ind
-            self.n_opp = self.bc.n_opp
-            self.k_ind = self.bc.k_ind
 
 
     def add_param(self, param_name, param_function):

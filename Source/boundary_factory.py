@@ -8,37 +8,29 @@
 #                                                                                      #
 ########################################################################################
 
+import inspect
+
 import boundary_types
 import numpy as np
 
 
-end_boundaries = {
-    'adiabatic': 'end_bc',
-    'dirichlet': 'end_dirichlet',
-    'convection': 'end_convection',
-    'heat flux': 'end_flux',
-    'radiation': 'end_radiation'
-}
+def _build_registry(base_class):
+    '''Builds {yaml_type: class} and {yaml_type: required_params} dicts
+    by introspecting boundary_types for concrete subclasses (and
+    base_class itself) that declare a yaml_type.
+    '''
+    boundaries = {}
+    params = {}
+    for _, cls in inspect.getmembers(boundary_types, inspect.isclass):
+        if not issubclass(cls, base_class) or not hasattr(cls, 'yaml_type'):
+            continue
+        boundaries[cls.yaml_type] = cls
+        params[cls.yaml_type] = cls.required_params
+    return boundaries, params
 
-end_params = {
-    'adiabatic': [],
-    'dirichlet': ['T'],
-    'convection': ['T', 'h'],
-    'heat flux': ['Flux'],
-    'radiation': ['T', 'eps']
-}
 
-ext_boundaries = {
-    'adiabatic': 'ext_bc',
-    'convection': 'ext_convection',
-    'radiation': 'ext_radiation'
-}
-
-ext_params = {
-    'adiabatic': [],
-    'convection': ['T', 'h'],
-    'radiation': ['T', 'eps']
-}
+end_boundaries, end_params = _build_registry(boundary_types.end_bc)
+ext_boundaries, ext_params = _build_registry(boundary_types.ext_bc)
 
 face_pa_r_dim = {
     'top': 'L_z',
@@ -77,13 +69,13 @@ def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None, x_nod
             boundaries = end_boundaries
             required_params = end_params
             check_boundary_type(bc_type, boundaries, location)
-            class_ = getattr(boundary_types, boundaries[bc_type])
+            class_ = boundaries[bc_type]
             parent_bc = class_(dx_arr, location)
         elif location == 'External':
             boundaries = ext_boundaries
             required_params = ext_params
             check_boundary_type(bc_type, boundaries, location)
-            class_ = getattr(boundary_types, boundaries[bc_type])
+            class_ = boundaries[bc_type]
             if param_dict.get('Faces'):
                 bc_PA_r = compute_face_PA_r(param_dict['Faces'], L_y, L_z)
             else:
@@ -93,13 +85,14 @@ def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None, x_nod
         temporal_functions = {}
         for param in required_params[bc_type]:
             try:
-                param_type = type(param_dict[param])
+                value = lookup_param(param_dict, param)
             except KeyError:
                 err_str = f'Parameter {param} not found in {location} {bc_type} boundary.'
                 raise KeyError(err_str)
 
+            param_type = type(value)
             if param_type is dict:
-                pd = param_dict[param]
+                pd = value
                 if 'XT Table' in pd:
                     if location != 'External':
                         err_str = f'XT Table is only supported for External boundaries, not {location}.'
@@ -115,7 +108,7 @@ def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None, x_nod
                     initial_value, param_function = parse_temporal_param(pd)
                     temporal_functions[param] = param_function
             elif param_type is float or param_type is int:
-                initial_value = param_dict[param]
+                initial_value = value
             else:
                 err_str = f'Incorrect input for {param} on {location} boundary.'
                 raise ValueError(err_str)
@@ -175,6 +168,15 @@ def compute_face_PA_r(faces, L_y, L_z):
     return total
 
 
+def lookup_param(param_dict, param):
+    '''Looks up a required BC parameter by name, case-insensitively.
+    '''
+    for key, value in param_dict.items():
+        if key.lower() == param.lower():
+            return value
+    raise KeyError(param)
+
+
 def check_boundary_type(bc_type, boundaries, location):
     if bc_type not in boundaries.keys():
         err_str = f'Bondary type {bc_type} for {location} boundary not found.'
@@ -182,11 +184,11 @@ def check_boundary_type(bc_type, boundaries, location):
 
 
 def check_boundary_compatibility(bc_types, location):
-    """Check if multiple boundary conditions are compatible.
+    '''Check if multiple boundary conditions are compatible.
 
     Adiabatic and Dirichlet BCs are mutually exclusive and cannot be combined
     with other BC types on the same boundary location.
-    """
+    '''
     incompatible_types = {'adiabatic', 'dirichlet'}
 
     # Check if any incompatible BC is mixed with others
