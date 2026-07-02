@@ -8,36 +8,35 @@
 #                                                                                      #
 ########################################################################################
 
+import inspect
+
 import boundary_types
 import numpy as np
 
 
-end_boundaries = {
-    'adiabatic': 'end_bc',
-    'dirichlet': 'end_dirichlet',
-    'convection': 'end_convection',
-    'heat flux': 'end_flux',
-    'radiation': 'end_radiation'
-}
+def _build_registry(base_class):
+    '''Builds {yaml_type: class} and {yaml_type: required_params} dicts
+    by introspecting boundary_types for concrete subclasses (and
+    base_class itself) that declare a yaml_type.
+    '''
+    boundaries = {}
+    params = {}
+    for _, cls in inspect.getmembers(boundary_types, inspect.isclass):
+        if not issubclass(cls, base_class) or not hasattr(cls, 'yaml_type'):
+            continue
+        boundaries[cls.yaml_type] = cls
+        params[cls.yaml_type] = cls.required_params
+    return boundaries, params
 
-end_params = {
-    'adiabatic': [],
-    'dirichlet': ['T'],
-    'convection': ['T', 'h'],
-    'heat flux': ['Flux'],
-    'radiation': ['T', 'eps']
-}
 
-ext_boundaries = {
-    'adiabatic': 'ext_bc',
-    'convection': 'ext_convection',
-    'radiation': 'ext_radiation'
-}
+end_boundaries, end_params = _build_registry(boundary_types.end_bc)
+ext_boundaries, ext_params = _build_registry(boundary_types.ext_bc)
 
-ext_params = {
-    'adiabatic': [],
-    'convection': ['T', 'h'],
-    'radiation': ['T', 'eps']
+face_pa_r_dim = {
+    'top': 'L_z',
+    'bottom': 'L_z',
+    'front': 'L_y',
+    'back': 'L_y',
 }
 
 required_control_params = {
@@ -47,73 +46,160 @@ required_control_params = {
     'h Post': 'h_post'
 }
 
-def factory(location, params, dx_arr, PA_r, mint_list):
-    bc_type = params['Type'].strip().lower()
-    if location == 'Left' or location == 'Right':
-        boundaries = end_boundaries
-        required_params = end_params
-        check_boundary_type(bc_type, boundaries, location)
-        class_ = getattr(boundary_types, boundaries[bc_type])
-        parent_bc = class_(dx_arr, location)
-    elif location == 'External':
-        boundaries = ext_boundaries
-        required_params = ext_params
-        check_boundary_type(bc_type, boundaries, location)
-        class_ = getattr(boundary_types, boundaries[bc_type])
-        parent_bc = class_(dx_arr, PA_r)
+def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None, x_node=None):
+    # Handle single BC (backward compatibility)
+    if isinstance(params, dict):
+        params = [params]
 
-    temporal_functions = {}
-    for param in required_params[bc_type]:
-        try:
-            param_type = type(params[param])
-        except KeyError:
-            err_str = f'Parameter {param} not found in {location} {bc_type} boundary.'
-            raise KeyError(err_str)
+    # Handle empty list (should default to adiabatic)
+    if not params:
+        params = [{'Type': 'Adiabatic'}]
 
-        if param_type is dict:
-            initial_value, param_function = parse_temporal_param(params[param])
-            temporal_functions[param] = param_function
-        elif param_type is float or param_type is int:
-            initial_value = params[param]
-        else:
-            err_str = f'Incorrect input for {param} on {location} boundary.'
-            raise ValueError(err_str)
+    # Extract BC types for compatibility checking
+    bc_types = [param_dict['Type'].strip().lower() for param_dict in params]
 
-        setattr(parent_bc, param, initial_value)
-    parent_bc.setup_params()
-    
-    if len(temporal_functions) > 0:
-        if 'radiation' in parent_bc.name:
-            err_str = f'Radiation not supported for transient properties.'
-            raise ValueError(err_str)
-        wrap_bc = boundary_types.temporal_boundary(parent_bc)
-        for param in temporal_functions.keys():
-            wrap_bc.add_param(param, temporal_functions[param])
-        bc = wrap_bc
-    else:
-        bc = parent_bc
+    # Check for incompatible BC combinations
+    check_boundary_compatibility(bc_types, location)
 
-    if 'Temperature Control' in params.keys() and location != 'External':
-        final_bc = boundary_types.end_temperature_control(bc, dx_arr, mint_list)
-        control_params = params['Temperature Control']
-        for param in required_control_params.keys():  
-            if param not in control_params:
-                err_str = f'Parameter {param} not found in {location} temperature control boundary.'
+    # Create individual BC objects
+    bc_objects = []
+    for param_dict in params:
+        bc_type = param_dict['Type'].strip().lower()
+        if location == 'Left' or location == 'Right':
+            boundaries = end_boundaries
+            required_params = end_params
+            check_boundary_type(bc_type, boundaries, location)
+            class_ = boundaries[bc_type]
+            parent_bc = class_(dx_arr, location)
+        elif location == 'External':
+            boundaries = ext_boundaries
+            required_params = ext_params
+            check_boundary_type(bc_type, boundaries, location)
+            class_ = boundaries[bc_type]
+            if param_dict.get('Faces'):
+                bc_PA_r = compute_face_PA_r(param_dict['Faces'], L_y, L_z)
+            else:
+                bc_PA_r = PA_r
+            parent_bc = class_(dx_arr, bc_PA_r)
+
+        temporal_functions = {}
+        for param in required_params[bc_type]:
+            try:
+                value = lookup_param(param_dict, param)
+            except KeyError:
+                err_str = f'Parameter {param} not found in {location} {bc_type} boundary.'
                 raise KeyError(err_str)
-            setattr(final_bc, required_control_params[param], control_params[param])
-        final_bc.setup_params()
-    elif 'Deactivation Time' in params.keys():
-        final_bc = boundary_types.timed_boundary(bc, params['Deactivation Time'])
-    else:
-        final_bc = bc
 
-    return final_bc
+            param_type = type(value)
+            if param_type is dict:
+                pd = value
+                if 'XT Table' in pd:
+                    if location != 'External':
+                        err_str = f'XT Table is only supported for External boundaries, not {location}.'
+                        raise ValueError(err_str)
+                    initial_value, param_function = parse_spacetime_param(pd, x_node)
+                    temporal_functions[param] = param_function
+                elif 'X Table' in pd:
+                    if location != 'External':
+                        err_str = f'X Table is only supported for External boundaries, not {location}.'
+                        raise ValueError(err_str)
+                    initial_value = parse_spatial_param(pd, x_node)
+                else:
+                    initial_value, param_function = parse_temporal_param(pd)
+                    temporal_functions[param] = param_function
+            elif param_type is float or param_type is int:
+                initial_value = value
+            else:
+                err_str = f'Incorrect input for {param} on {location} boundary.'
+                raise ValueError(err_str)
+
+            setattr(parent_bc, param, initial_value)
+        parent_bc.setup_params()
+
+        if len(temporal_functions) > 0:
+            if 'radiation' in parent_bc.name:
+                err_str = f'Radiation not supported for transient properties.'
+                raise ValueError(err_str)
+            wrap_bc = boundary_types.temporal_boundary(parent_bc)
+            for param in temporal_functions.keys():
+                wrap_bc.add_param(param, temporal_functions[param])
+            bc = wrap_bc
+        else:
+            bc = parent_bc
+
+        if 'Temperature Control' in param_dict.keys() and location != 'External':
+            final_bc = boundary_types.end_temperature_control(bc, dx_arr, mint_list)
+            control_params = param_dict['Temperature Control']
+            for param in required_control_params.keys():
+                if param not in control_params:
+                    err_str = f'Parameter {param} not found in {location} temperature control boundary.'
+                    raise KeyError(err_str)
+                setattr(final_bc, required_control_params[param], control_params[param])
+            final_bc.setup_params()
+        elif 'Deactivation Time' in param_dict.keys():
+            final_bc = boundary_types.timed_boundary(bc, param_dict['Deactivation Time'])
+        else:
+            final_bc = bc
+
+        bc_objects.append(final_bc)
+
+    # Always return a list
+    return bc_objects
+
+
+def compute_face_PA_r(faces, L_y, L_z):
+    '''Computes the perimeter-to-area ratio contribution for a subset of
+    Top/Bottom/Front/Back external faces. Top/Bottom span Y Dimension;
+    Front/Back span Z Dimension.
+    '''
+    dims = {'L_y': L_y, 'L_z': L_z}
+    seen = set()
+    total = 0.
+    for face in faces:
+        key = face.strip().lower()
+        if key not in face_pa_r_dim:
+            err_str = f'Unrecognized External BC face "{face}". Must be one of Top, Bottom, Front, Back.'
+            raise ValueError(err_str)
+        if key in seen:
+            err_str = f'Face "{face}" repeated in External BC Faces list.'
+            raise ValueError(err_str)
+        seen.add(key)
+        total += 1./dims[face_pa_r_dim[key]]
+    return total
+
+
+def lookup_param(param_dict, param):
+    '''Looks up a required BC parameter by name, case-insensitively.
+    '''
+    for key, value in param_dict.items():
+        if key.lower() == param.lower():
+            return value
+    raise KeyError(param)
 
 
 def check_boundary_type(bc_type, boundaries, location):
     if bc_type not in boundaries.keys():
         err_str = f'Bondary type {bc_type} for {location} boundary not found.'
         raise KeyError(err_str)
+
+
+def check_boundary_compatibility(bc_types, location):
+    '''Check if multiple boundary conditions are compatible.
+
+    Adiabatic and Dirichlet BCs are mutually exclusive and cannot be combined
+    with other BC types on the same boundary location.
+    '''
+    incompatible_types = {'adiabatic', 'dirichlet'}
+
+    # Check if any incompatible BC is mixed with others
+    has_incompatible = any(bc_type in incompatible_types for bc_type in bc_types)
+    has_multiple_bcs = len(bc_types) > 1
+
+    if has_incompatible and has_multiple_bcs:
+        incompatible_found = [bc_type for bc_type in bc_types if bc_type in incompatible_types]
+        err_str = f'Cannot combine {incompatible_found} boundary condition(s) with other BC types on {location} boundary. '
+        err_str += 'Adiabatic and Dirichlet BCs must be used alone.'
+        raise ValueError(err_str)
     
 
 def parse_temporal_param(temporal_param):
@@ -126,3 +212,17 @@ def parse_temporal_param(temporal_param):
         rate = temporal_param['Rate']
         param_function = boundary_types.ramp_function(rate, initial_value)
     return initial_value, param_function
+
+
+def parse_spatial_param(spatial_dict, x_node):
+    table = np.genfromtxt(spatial_dict['X Table'], delimiter=',')
+    return np.interp(x_node, table[:,0], table[:,1])
+
+
+def parse_spacetime_param(spacetime_dict, x_node):
+    grid = np.genfromtxt(spacetime_dict['XT Table'], delimiter=',')
+    table_x = grid[0, 1:]
+    table_t = grid[1:, 0]
+    table_vals = grid[1:, 1:]
+    param_function = boundary_types.spacetime_table_function(x_node, table_x, table_t, table_vals)
+    return param_function(0.0), param_function

@@ -89,6 +89,6 @@ class grid_manager:
     def set_PA_r(self, oth_dict):
         '''Calculate the perimeter to cross-sectional area ratio.
         '''
-        L_y = oth_dict['Y Dimension']
-        L_z = oth_dict['Z Dimension']
-        self.PA_r = 2.*(L_y + L_z)/(L_y*L_z)
+        self.L_y = oth_dict['Y Dimension']
+        self.L_z = oth_dict['Z Dimension']
+        self.PA_r = 2.*(self.L_y + self.L_z)/(self.L_y*self.L_z)

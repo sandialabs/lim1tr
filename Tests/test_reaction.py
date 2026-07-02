@@ -149,7 +149,7 @@ class reaction_tests(unittest.TestCase):
         for i in range(len(reac_man.species_name_list)):
             my_s[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
         my_v = np.zeros(reac_man.n_species + 1)
-        my_v[0] = time_opts['T Initial']
+        my_v[0] = time_opts['T Initial'][0]
         my_v[1:] = my_s
 
         # Compute function at base inputs
@@ -183,7 +183,7 @@ class reaction_tests(unittest.TestCase):
         for i in range(len(reac_man.species_name_list)):
             my_s[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
         my_v = np.zeros(reac_man.n_species + 1)
-        my_v[0] = time_opts['T Initial']
+        my_v[0] = time_opts['T Initial'][0]
         my_v[1:] = my_s
         n_v = reac_man.n_species + 1
 
@@ -270,7 +270,7 @@ class reaction_tests(unittest.TestCase):
         for i in range(len(reac_man.species_name_list)):
             my_s[i] = reac_man.species_density[reac_man.species_name_list[i]][0]
         my_v = np.zeros(reac_man.n_species + 1)
-        my_v[0] = time_opts['T Initial']
+        my_v[0] = time_opts['T Initial'][0]
         my_v[1:] = my_s
 
         # Compute function at base inputs
