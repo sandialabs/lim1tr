@@ -57,10 +57,6 @@ class data_manager:
 
 
     def calculate_rates(self, t, q):
-        # Turn off DSC temperature ramp to get heat release
-        for i in range(self.reac_man.n_cells):
-            self.reac_man.cells[i].reaction_system.set_temperature_ode(False)
-
         self.rate_dict['Time'] = t
         dq_dt = np.zeros(q.shape)
         for i in range(q.shape[0]):

@@ -37,7 +37,6 @@ class reaction_manager:
                 err_str = 'Please enter a DSC Rate in the Other block'
                 raise ValueError(err_str)
             self.dsc_rate = other_opts['DSC Rate']
-        self.dsc_info = (self.dsc_mode, self.dsc_rate)
 
         # Small constant
         self.small_number = 1.0e-15
@@ -163,7 +162,7 @@ class reaction_manager:
             rxn_inds = [j for j in range(tmp_sys.shape[0]) if tmp_sys[j]]
             model_sub_list = [self.model_list[j] for j in range(tmp_sys.shape[0]) if tmp_sys[j]]
             self.reaction_systems.append(reaction_system.reaction_system(
-                frac_mat[:,rxn_inds], model_sub_list, self.dsc_info))
+                frac_mat[:,rxn_inds], model_sub_list))
 
         # Set reaction systems on cells
         for i in range(self.n_cells):

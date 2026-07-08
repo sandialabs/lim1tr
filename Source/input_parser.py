@@ -8,6 +8,7 @@
 #                                                                                      #
 ########################################################################################
 
+import warnings
 import numpy as np
 import os
 import yaml
@@ -99,6 +100,31 @@ class input_parser:
 
         else:
             reac_man = False
+
+        # Validate DSC mode input
+        if reac_man and reac_man.dsc_mode:
+            n_mats = len(self.cap_dict['Materials'])
+            if n_mats > 1:
+                warnings.warn(
+                    'DSC mode: {} materials specified; only 1 is expected.'.format(n_mats))
+            n_layers = len(self.cap_dict['Domain Table']['Material Name'])
+            if n_layers > 1:
+                raise ValueError(
+                    'DSC mode: domain table has {} rows; only 1 is expected.'.format(n_layers))
+            bnd = self.cap_dict['Boundary']
+            for loc in ('Left', 'Right'):
+                bc_type = bnd.get(loc, {}).get('Type', 'Adiabatic')
+                if bc_type.lower() != 'adiabatic':
+                    raise ValueError(
+                        'DSC mode: {} boundary is {} (expected Adiabatic).'.format(loc, bc_type))
+            ext = bnd.get('External')
+            if ext is not None:
+                ext_list = ext if isinstance(ext, list) else [ext]
+                for bc in ext_list:
+                    bc_type = bc.get('Type', 'Adiabatic')
+                    if bc_type.lower() != 'adiabatic':
+                        raise ValueError(
+                            'DSC mode: External boundary is {} (expected Adiabatic).'.format(bc_type))
 
         # Data manager
         data_man = data.data_manager(grid_man, reac_man, self.cap_dict, self.fold_name, self.file_name)

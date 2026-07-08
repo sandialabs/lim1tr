@@ -241,10 +241,9 @@ class eqn_sys:
         if self.reac_man:
             t_st = time.time()
             RHS_T, RHS_species = self.reac_man.right_hand_side(t, state)
+            self.F += RHS_T * self.mat_man.i_rcp
             if self.reac_man.dsc_mode:
-                self.F += RHS_T
-            else:
-                self.F += RHS_T*self.mat_man.i_rcp
+                self.F[:] = self.reac_man.dsc_rate
             self.F = np.hstack([self.F, RHS_species])
             self.time_reaction += time.time() - t_st
 
@@ -298,8 +297,10 @@ class eqn_sys:
             # Assemble RXN Jacobian
             R_jac = self.reac_man.jacobian(t, state)
 
-            # Convert temperature ODEs to K/s
-            if not self.reac_man.dsc_mode:
+            # Convert temperature ODEs to K/s, or zero out if DSC prescribes T
+            if self.reac_man.dsc_mode:
+                R_jac[0,:,:] = 0.0
+            else:
                 for j in range(self.dof_node):
                     R_jac[0,j,:] *= self.mat_man.i_rcp
 
@@ -411,13 +412,7 @@ class eqn_sys:
     def post_step(self, t, state, residual, number_of_time_steps):
         self.bc_man.post_step()
         if self.tr_tracker is not None:
-            if self.reac_man.dsc_mode:
-                for cell in self.reac_man.cells:
-                    cell.reaction_system.set_temperature_ode(False)
             RHS_T, _ = self.reac_man.right_hand_side(t, state)
-            if self.reac_man.dsc_mode:
-                for cell in self.reac_man.cells:
-                    cell.reaction_system.set_temperature_ode(True)
             self.tr_tracker.update(t, RHS_T * self.mat_man.i_rcp)
 
 

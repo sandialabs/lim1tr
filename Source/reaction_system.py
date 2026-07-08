@@ -13,15 +13,11 @@ import time
 
 
 class reaction_system:
-    def __init__(self, frac_mat, model_list, dsc_info):
+    def __init__(self, frac_mat, model_list):
         self.n_species, self.n_rxn = frac_mat.shape
         self.frac_mat = frac_mat
         self.model_list = model_list
         self.small_number = 1e-15
-
-        self.dsc_mode = dsc_info[0]
-        self.dsc_rate = dsc_info[1]
-        self.set_temperature_ode(self.dsc_mode)
 
         # Build heat of reaction array from models
         self.H_rxn = np.zeros(self.n_rxn)
@@ -30,8 +26,6 @@ class reaction_system:
 
         # Augment frac mat with a row for temperature (for computing the jacobian)
         aug_row = np.array(self.H_rxn, ndmin=2)
-        if self.dsc_mode:
-            aug_row = aug_row*0.
         self.aug_mat = np.concatenate((aug_row, self.frac_mat), axis=0)
 
         # Timers
@@ -40,13 +34,6 @@ class reaction_system:
         self.remaining_time = 0.0
         self.con_times = np.zeros(self.n_rxn)
         self.rate_times = np.zeros(self.n_rxn)
-
-
-    def set_temperature_ode(self, use_dsc):
-        if use_dsc:
-            self.temperature_ode = self.linear_temperature
-        else:
-            self.temperature_ode = self.rxn_temperature
 
 
     def evaluate_ode(self, t, T_arr, species_mat):
@@ -74,7 +61,7 @@ class reaction_system:
         ds_dt = np.dot(self.frac_mat, my_r)
 
         # Temperature ODE (n_nodes)
-        dT_dt = self.temperature_ode(my_r)
+        dT_dt = self.rxn_temperature(my_r)
         self.remaining_time += time.time() - t_st
 
         return dT_dt, ds_dt
@@ -140,12 +127,5 @@ class reaction_system:
 
 
     def rxn_temperature(self, my_r):
-        '''Temperature ODE function for reaction
-        source terms (W/m^3)'''
+        '''Temperature ODE function for reaction source terms (W/m^3)'''
         return np.dot(self.H_rxn, my_r)
-
-
-    def linear_temperature(self, my_r):
-        '''Temperature ODE function for DSC or
-        constant temperature rise (K/s)'''
-        return np.full(my_r.shape[1], self.dsc_rate)
