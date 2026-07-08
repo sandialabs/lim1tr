@@ -46,6 +46,7 @@ class eqn_sys:
         # Reaction manager
         self.reac_man = reac_man
         self.mass_loss = False
+        self.tr_tracker = None
         if self.reac_man:
             self.dof_node += self.reac_man.n_species
             self.mass_loss = self.reac_man.mass_loss
@@ -55,8 +56,13 @@ class eqn_sys:
                 self.initial_state, self.reac_man.initial_density])
             species_weight = 1/self.reac_man.material_info['rho']
             self.norm_weighting = np.hstack([
-                self.norm_weighting, 
+                self.norm_weighting,
                 np.full(self.reac_man.initial_density.shape[0], species_weight)])
+
+            from tr_tracker import thermal_runaway_tracker
+            t_rate_thr = time_opts.get('TR T Rate Threshold', 0.0)
+            self.tr_tracker = thermal_runaway_tracker(
+                self.n_tot, self.reac_man.cells, t_rate_thr)
 
         # Steady non-linear options
         self.print_nonlinear = False
@@ -404,6 +410,15 @@ class eqn_sys:
 
     def post_step(self, t, state, residual, number_of_time_steps):
         self.bc_man.post_step()
+        if self.tr_tracker is not None:
+            if self.reac_man.dsc_mode:
+                for cell in self.reac_man.cells:
+                    cell.reaction_system.set_temperature_ode(False)
+            RHS_T, _ = self.reac_man.right_hand_side(t, state)
+            if self.reac_man.dsc_mode:
+                for cell in self.reac_man.cells:
+                    cell.reaction_system.set_temperature_ode(True)
+            self.tr_tracker.update(t, RHS_T * self.mat_man.i_rcp)
 
 
     def steady_solve(self):

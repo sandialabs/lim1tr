@@ -48,7 +48,7 @@ class lim1tr_model:
             solvers.steady_solve(eqn_sys)
         else:
             t, q = solvers.transient_solve(eqn_sys, verbose=time_opts['Print Progress'])
-            data_man.format_data(t, q)
+            data_man.format_data(t, q, eqn_sys.tr_tracker)
             data_man.write_data()
 
         # Return managers and options
