@@ -295,5 +295,43 @@ class reaction_tests(unittest.TestCase):
         self.assertTrue(err < 1e-12, '\tFailed with RMSE {:0.2e}\n'.format(err))
 
 
+    @unittest.skipUnless(os.environ.get('LIM1TR_SLOW_TESTS'), 'slow integration test')
+    def test_dsc_2rxn(self):
+        print('\nTesting DSC mode with 2-reaction battery example...')
+        model = main_fv.lim1tr_model('../Examples/DSC/2_rxn.yaml')
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+
+        t_arr = data_man.data_dict['Time']
+        T_arr = data_man.data_dict['Temperature']
+
+        # 1. Temperature ramp accuracy
+        T_expected = 350.0 + 0.166666667 * t_arr
+        T_err = np.max(np.abs(T_arr[:, 0] - T_expected))
+        self.assertTrue(T_err < 1e-10,
+                        'Temperature ramp error {:0.2e} K'.format(T_err))
+
+        # 2. Final species densities at t=1600 s
+        ref = {
+            'EC':        0.0,
+            'C6Li':      271.2884333074,
+            'SEI':       0.0,
+            'Salt1':     54.6413252020,
+            'Li2CO3':    419.5542211934,
+            'C6':        818.3947626072,
+            'AllGas':    224.4146501732,
+            'Container': 213.2666083042,
+        }
+        for name, rho_ref in ref.items():
+            rho_final = data_man.data_dict[name][-1, 0]
+            self.assertAlmostEqual(rho_final, rho_ref, delta=1e-4,
+                                   msg='{} final density error'.format(name))
+
+        # 3. HRR units sanity: key present, peak value in W/m³ range
+        self.assertIn('HRR', data_man.rate_dict)
+        peak_hrr = np.max(data_man.rate_dict['HRR'])
+        self.assertTrue(1e6 <= peak_hrr <= 2e7,
+                        'Peak HRR {:.3e} W/m³ out of expected range'.format(peak_hrr))
+
+
 if __name__ == '__main__':
     unittest.main()
