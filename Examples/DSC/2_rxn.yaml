@@ -60,7 +60,7 @@ Boundary:
 Time:
     Run Time: 1600.0            # s
     T Initial: 350.0            # K
-    dt: 0.1                     # s
+    Output Frequency: 10        # samples/s
 
 Other:
     Y Dimension: 0.003          # m

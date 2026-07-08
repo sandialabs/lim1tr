@@ -203,6 +203,13 @@ class input_parser:
         if 'Print Progress' not in time_dict.keys():
             time_dict['Print Progress'] = 1
 
+        # Set TR threshold if not provided
+        # Units K/s
+        if 'TR T Rate Threshold' not in time_dict.keys():
+            time_dict['TR T Rate Threshold'] = 100.0
+        else:
+            time_dict['TR T Rate Threshold'] = float(time_dict['TR T Rate Threshold'])
+
         # Set initial temperature
         if type(time_dict['T Initial']) is list:
             if len(time_dict['T Initial']) != grid_man.n_layers:

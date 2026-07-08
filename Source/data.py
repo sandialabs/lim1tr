@@ -32,7 +32,7 @@ class data_manager:
             self.dof_name_list += reac_man.species_name_list
 
 
-    def format_data(self, t, q):
+    def format_data(self, t, q, tr_tracker=None):
         # Format data into nice dictionaries
         self.data_dict['Time'] = t
         self.data_dict[self.dof_name_list[0]] = q[:,:self.n_tot]
@@ -51,6 +51,9 @@ class data_manager:
             tmp_ind = self.mint_list[m]
             T_interface[:,m] = 0.5*(q[:, tmp_ind] + q[:, tmp_ind + 1])
         self.data_dict['Interface Temperature'] = T_interface
+
+        if tr_tracker is not None:
+            self.data_dict.update(tr_tracker.get_output())
 
 
     def calculate_rates(self, t, q):
