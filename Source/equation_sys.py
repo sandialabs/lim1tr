@@ -414,6 +414,8 @@ class eqn_sys:
         if self.tr_tracker is not None:
             RHS_T, _ = self.reac_man.right_hand_side(t, state)
             self.tr_tracker.update(t, RHS_T * self.mat_man.i_rcp)
+        if self.bc_man.event_man is not None:
+            self.bc_man.event_man.update(t, state, self.tr_tracker)
 
 
     def steady_solve(self):

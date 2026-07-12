@@ -28,6 +28,7 @@ class bc_manager:
         self.boundaries = []
         self.nonlinear_boundaries = []
         self.nonlinear_flag = False
+        self.event_man = None
 
 
     def setup(self, bnd_dict):
@@ -55,14 +56,23 @@ class bc_manager:
             self.boundaries.append(bc)
 
 
+    def get_by_name(self, name):
+        for bc in self.boundaries + self.nonlinear_boundaries:
+            if bc.user_name == name:
+                return bc
+        raise KeyError('No boundary condition named "{}" found.'.format(name))
+
+
     def apply(self, eqn_sys, mat_man, t, T):
         for bc in self.boundaries:
-            bc.apply(eqn_sys, mat_man, t, T)
+            if bc.active:
+                bc.apply(eqn_sys, mat_man, t, T)
 
 
     def apply_nonlinear(self, eqn_sys, mat_man, t, T):
         for bc in self.nonlinear_boundaries:
-            bc.apply(eqn_sys, mat_man, t, T)
+            if bc.active:
+                bc.apply(eqn_sys, mat_man, t, T)
 
 
     def post_step(self):

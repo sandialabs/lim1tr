@@ -17,6 +17,7 @@ import boundary
 import grid
 import reaction
 import data
+import events
 
 
 class input_parser:
@@ -126,10 +127,86 @@ class input_parser:
                         raise ValueError(
                             'DSC mode: External boundary is {} (expected Adiabatic).'.format(bc_type))
 
+        # Events (optional)
+        self.load_events(bc_man, grid_man, reac_man)
+
         # Data manager
         data_man = data.data_manager(grid_man, reac_man, self.cap_dict, self.fold_name, self.file_name)
 
         return mat_man, grid_man, bc_man, reac_man, data_man, time_opts
+
+
+    def load_events(self, bc_man, grid_man, reac_man):
+        '''Parse the optional Events block into an event manager on bc_man.
+
+        Events is a mapping of rule name to rule. Each rule pairs a condition
+        (checked every accepted timestep) with actions fired on the rising
+        edge (On Trigger) and optionally on the falling edge (On Release,
+        requires One Shot: false). Action lists map an action type to the
+        names of the BCs it acts on.
+        '''
+        if 'Events' not in self.cap_dict.keys():
+            return
+        print(self.cap_dict['Events'])
+        rules = []
+        for rule_name, rule_dict in self.cap_dict['Events'].items():
+            cond_dict = rule_dict['Condition']
+            cond_type = cond_dict['Type'].strip().lower()
+            if cond_type == 'cell tr':
+                if not reac_man:
+                    err_str = 'Event "{}": Cell TR condition requires the Reactions block.'.format(rule_name)
+                    raise ValueError(err_str)
+                cell_index = cond_dict['Cell Index']
+                if not 0 <= cell_index < reac_man.n_cells:
+                    err_str = 'Event "{}": Cell Index {} out of range for {} reaction cells.'.format(
+                        rule_name, cell_index, reac_man.n_cells)
+                    raise ValueError(err_str)
+                condition = events.tr_cell_condition(cell_index)
+            elif cond_type == 'temperature':
+                t_loc = cond_dict['T Location']
+                if t_loc == 0:
+                    node_indices = [0]
+                elif t_loc == len(grid_man.mint_list):
+                    node_indices = [grid_man.n_tot - 1]
+                else:
+                    l_ind = grid_man.mint_list[t_loc - 1]
+                    node_indices = [l_ind, l_ind + 1]
+                condition = events.temperature_condition(node_indices, cond_dict['T Cutoff'])
+            else:
+                err_str = 'Event "{}": unrecognized condition type {}.'.format(rule_name, cond_dict['Type'])
+                raise ValueError(err_str)
+
+            trigger_actions = self.make_event_actions(rule_dict['On Trigger'], bc_man, rule_name)
+            release_actions = self.make_event_actions(rule_dict.get('On Release', {}), bc_man, rule_name)
+            one_shot = rule_dict.get('One Shot', True)
+            if one_shot and release_actions:
+                err_str = 'Event "{}": On Release requires One Shot: false.'.format(rule_name)
+                raise ValueError(err_str)
+
+            # BCs an event will activate must start inactive
+            for action in trigger_actions:
+                if isinstance(action, events.activate_bc_action):
+                    action.bc.active = False
+
+            rules.append(events.event_rule(condition, trigger_actions, release_actions, one_shot))
+        bc_man.event_man = events.event_manager(rules)
+
+
+    def make_event_actions(self, action_dict, bc_man, rule_name):
+        action_classes = {
+            'deactivate bc': events.deactivate_bc_action,
+            'activate bc': events.activate_bc_action}
+        actions = []
+        for action_type, bc_names in action_dict.items():
+            class_ = action_classes.get(action_type.strip().lower())
+            if class_ is None:
+                err_str = 'Event "{}": unrecognized action type {}.'.format(rule_name, action_type)
+                raise ValueError(err_str)
+            if isinstance(bc_names, str):
+                bc_names = [bc_names]
+            for bc_name in bc_names:
+                actions.append(class_(bc_man.get_by_name(bc_name)))
+        return actions
 
 
     def load_table(self, grid_man):
