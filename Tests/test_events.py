@@ -258,5 +258,65 @@ class event_tests(unittest.TestCase):
         self.assertAlmostEqual(np.max(np.abs(T_sol[-1, :] - T_sol[-2, :])), 0.0, places=3)
 
 
+    def test_heater_swap_integration(self):
+        '''A heater at the left end raises the local temperature until it
+        crosses T Cutoff. The same event deactivates the heater and, in
+        the same trigger, activates a convection BC at the right end that
+        starts inactive. The bar then relaxes back to the convection BC's
+        ambient temperature instead of continuing to heat, exercising
+        Activate BC and Deactivate BC together in one transient solve.'''
+        print('\nTesting heater deactivation + cooler activation event on a transient solve...')
+        file_name = os.path.join(os.path.dirname(__file__), 'Inputs', 'event_heater_swap.yaml')
+        model = main_fv.lim1tr_model(file_name)
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_sol = data_man.data_dict['Temperature']
+
+        # Heater was deactivated and Cooler was activated by the rule
+        self.assertFalse(bc_man.get_by_name('Heater').active)
+        self.assertTrue(bc_man.get_by_name('Cooler').active)
+
+        # Left end reached the cutoff with at most one step of overshoot
+        self.assertGreaterEqual(np.max(T_sol[:, 0]), 350.0)
+        self.assertLess(np.max(T_sol[:, 0]), 352.0)
+
+        # With the heater off and the cooler on, the bar relaxes back to
+        # the cooler's ambient temperature and reaches steady state,
+        # rather than continuing to heat through the end time
+        self.assertAlmostEqual(T_sol[-1, 0], 298.15, places=1)
+        self.assertAlmostEqual(T_sol[-1, -1], 298.15, places=1)
+        self.assertAlmostEqual(np.max(np.abs(T_sol[-1, :] - T_sol[-2, :])), 0.0, places=3)
+
+
+    def test_heater_swap_integration_adaptive_step(self):
+        '''Same scenario as test_heater_swap_integration, but with Spitfire's
+        adaptive step size controller instead of a fixed dt. Output Frequency
+        is bumped up so the dense-output history is still fine enough to
+        capture the cutoff crossing and the post-swap cooldown.'''
+        print('\nTesting heater deactivation + cooler activation event with adaptive time stepping...')
+        file_name = os.path.join(os.path.dirname(__file__), 'Inputs', 'event_heater_swap.yaml')
+        model = main_fv.lim1tr_model(file_name)
+        del model.parser.cap_dict['Time']['dt']
+        model.parser.cap_dict['Time']['Output Frequency'] = 100
+        eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
+        T_sol = data_man.data_dict['Temperature']
+
+        # Heater was deactivated and Cooler was activated by the rule
+        self.assertFalse(bc_man.get_by_name('Heater').active)
+        self.assertTrue(bc_man.get_by_name('Cooler').active)
+
+        # Left end reached the cutoff. Dense-output interpolation across
+        # the BC-switch kink can slightly undershoot the true accepted-step
+        # peak, so the bound is looser than the fixed-step version.
+        self.assertGreater(np.max(T_sol[:, 0]), 349.0)
+        self.assertLess(np.max(T_sol[:, 0]), 351.0)
+
+        # With the heater off and the cooler on, the bar relaxes back to
+        # the cooler's ambient temperature and reaches steady state,
+        # rather than continuing to heat through the end time
+        self.assertAlmostEqual(T_sol[-1, 0], 298.15, places=1)
+        self.assertAlmostEqual(T_sol[-1, -1], 298.15, places=1)
+        self.assertAlmostEqual(np.max(np.abs(T_sol[-1, :] - T_sol[-2, :])), 0.0, places=3)
+
+
 if __name__ == '__main__':
     unittest.main()
