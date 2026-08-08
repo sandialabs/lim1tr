@@ -11,6 +11,7 @@
 import warnings
 import numpy as np
 import os
+import logging
 import yaml
 import material
 import boundary
@@ -39,8 +40,8 @@ class input_parser:
 
     def print_dictionary(self):
         for key in self.cap_dict.keys():
-            print(key)
-            print(self.cap_dict[key])
+            logging.info(key)
+            logging.info(self.cap_dict[key])
 
 
     def apply_parse(self):
@@ -147,7 +148,7 @@ class input_parser:
         '''
         if 'Events' not in self.cap_dict.keys():
             return
-        print(self.cap_dict['Events'])
+
         rules = []
         for rule_name, rule_dict in self.cap_dict['Events'].items():
             cond_dict = rule_dict['Condition']

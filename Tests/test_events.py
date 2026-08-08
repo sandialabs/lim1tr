@@ -296,7 +296,7 @@ class event_tests(unittest.TestCase):
         file_name = os.path.join(os.path.dirname(__file__), 'Inputs', 'event_heater_swap.yaml')
         model = main_fv.lim1tr_model(file_name)
         del model.parser.cap_dict['Time']['dt']
-        model.parser.cap_dict['Time']['Output Frequency'] = 100
+        model.parser.cap_dict['Time']['Output Frequency'] = 10
         eqn_sys, cond_man, mat_man, grid_man, bc_man, reac_man, data_man, time_opts = model.run_model()
         T_sol = data_man.data_dict['Temperature']
 

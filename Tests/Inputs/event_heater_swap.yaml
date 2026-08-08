@@ -1,0 +1,43 @@
+Materials:
+    A:
+        k: 1
+        rho: 200
+        cp: 10
+
+Domain Table:
+    Material Name: [A]
+    Thickness: [0.1]
+    dx: [0.001]
+
+Boundary:
+    External:
+        Type: Adiabatic
+    Left:
+        Type: Heat Flux
+        Flux: 1000.
+        Name: Heater
+    Right:
+        Type: Convection
+        T: 298.15
+        h: 500.
+        Name: Cooler
+
+Events:
+    Heater Swap:
+        Condition:
+            Type: Temperature
+            T Location: 0
+            T Cutoff: 350.0
+        On Trigger:
+            Deactivate BC: [Heater]
+            Activate BC: [Cooler]
+
+Time:
+    Run Time: 150.0
+    dt: 0.05
+    T Initial: 298.15
+    Print Progress: 0
+
+Other:
+    Y Dimension: 0.2
+    Z Dimension: 0.1

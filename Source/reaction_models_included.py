@@ -9,6 +9,7 @@
 ########################################################################################
 
 import numpy as np
+import logging
 import reaction_model_base
 np.seterr(over='raise')
 
@@ -119,12 +120,12 @@ class zcrit(reaction_model_base.rxn_model):
             con_fun = self.a_e_crit*species_mat[self.name_map['C6Li'],:]*np.exp(-self.C_t*tau)
             con_fun = np.asarray_chkfinite(con_fun)
         except ValueError:
-            print(species_mat[self.name_map['Li2CO3'],:])
-            print(species_mat[self.name_map['C6Li'],:])
+            logging.info(species_mat[self.name_map['Li2CO3'],:])
+            logging.info(species_mat[self.name_map['C6Li'],:])
         except FloatingPointError:
-            print(self.name_map)
-            print(tau)
-            print(species_mat)
+            logging.info(self.name_map)
+            logging.info(tau)
+            logging.info(species_mat)
             raise(ValueError)
         return con_fun
 

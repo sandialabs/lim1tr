@@ -9,6 +9,7 @@
 ########################################################################################
 
 import sys, os
+import logging
 
 # Get absolute path of main
 main_path = os.path.dirname(os.path.realpath(__file__))
@@ -23,12 +24,24 @@ import equation_sys
 
 class lim1tr_model:
     def __init__(self, file_name):
-        # Print copyright statement
-        print('Copyright 2021 National Technology & Engineering Solutions of Sandia, LLC (NTESS).')
-        print('Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains')
-        print('certain rights in this software.')
-
         self.parser = input_parser.input_parser(file_name)
+
+        # Set up logging to screen and to a log file next to the input file
+        log_path = os.path.join(self.parser.fold_name, self.parser.file_name + '.log')
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+            handler.close()
+        root_logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(message)s')
+        for handler in [logging.FileHandler(log_path, mode='w'), logging.StreamHandler()]:
+            handler.setFormatter(formatter)
+            root_logger.addHandler(handler)
+
+        # Print copyright statement
+        logging.info('Copyright 2021 National Technology & Engineering Solutions of Sandia, LLC (NTESS).')
+        logging.info('Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains')
+        logging.info('certain rights in this software.')
 
 
     def run_model(self):

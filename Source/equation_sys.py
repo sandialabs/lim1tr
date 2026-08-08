@@ -10,6 +10,7 @@
 
 import numpy as np
 import time
+import logging
 from scipy.sparse import csc_matrix, diags, bmat, eye as speye
 from scipy.sparse.linalg import splu as superlu_factor
 from scipy.sparse.linalg import inv
@@ -201,10 +202,10 @@ class eqn_sys:
 
 
     def print_sys(self):
-        print(self.LHS_c)
-        print(self.LHS_u)
-        print(self.LHS_l)
-        print(self.RHS)
+        logging.info(self.LHS_c)
+        logging.info(self.LHS_u)
+        logging.info(self.LHS_l)
+        logging.info(self.RHS)
 
 
     def clean(self):
@@ -465,7 +466,7 @@ class eqn_sys:
         err = self.err_tol*2
         i = 0
         if self.print_nonlinear:
-            print('Nonlinear iterations:')
+            logging.info('Nonlinear iterations:')
         while (err > self.err_tol) & (i < self.max_nonlinear_its):
             # Build system for Newton step
             self.bc_man.apply_nonlinear(self, self.mat_man, t, self.T_sol)
@@ -489,7 +490,7 @@ class eqn_sys:
             # Calculate error
             err = np.max(np.abs(dT))
             if self.print_nonlinear:
-                print('\t', i, err)
+                logging.info(f'\t{i} {err}')
 
             # Update
             self.T_sol += dT
@@ -499,7 +500,7 @@ class eqn_sys:
             self.clean_nonlinear()
 
         if i >= self.max_nonlinear_its:
-            print('\nWarning!!! Maximum number of nonlinear iterations reached!\n')
+            logging.info('\nWarning!!! Maximum number of nonlinear iterations reached!\n')
 
         self.clean()
 
@@ -507,33 +508,33 @@ class eqn_sys:
 
 
     def print_statistics(self):
-        print('LIM1TR Statistics:')
-        print('  RHS Assembly')
-        print(f'- Conduction (s)    : {self.time_conduction:0.3f}')
-        print(f'  - Apply (s)       : {self.cond_apply_time:0.3f}')
-        print(f'  - BC Apply (s)    : {self.bc_time:0.3f}')
-        print(f'  - Linear Parts (s): {self.cond_F_time:0.3f}')
-        print(f'  - NL Parts (s)    : {self.nlbc_time:0.3f}')
+        logging.info('LIM1TR Statistics:')
+        logging.info('  RHS Assembly')
+        logging.info(f'- Conduction (s)    : {self.time_conduction:0.3f}')
+        logging.info(f'  - Apply (s)       : {self.cond_apply_time:0.3f}')
+        logging.info(f'  - BC Apply (s)    : {self.bc_time:0.3f}')
+        logging.info(f'  - Linear Parts (s): {self.cond_F_time:0.3f}')
+        logging.info(f'  - NL Parts (s)    : {self.nlbc_time:0.3f}')
         if self.reac_man:
-            print(f'- Reaction (s)      : {self.time_reaction:0.3f}')
+            logging.info(f'- Reaction (s)      : {self.time_reaction:0.3f}')
             self.reac_man.print_timings()
-        print(f'- Calls             : {self.rhs_count}')
+        logging.info(f'- Calls             : {self.rhs_count}')
 
-        print('\n  Jacobian Assembly')
-        print(f'- Conduction (s)    : {self.time_conduction_jac:0.3f}')
+        logging.info('\n  Jacobian Assembly')
+        logging.info(f'- Conduction (s)    : {self.time_conduction_jac:0.3f}')
         if self.reac_man:
-            print(f'- Reaction (s)      : {self.time_reaction_jac:0.3f}')
-        print(f'- Factor SuperLU (s): {self.factor_superlu_time:0.3f}')
-        print(f'- Calls             : {self.setup_count}')
+            logging.info(f'- Reaction (s)      : {self.time_reaction_jac:0.3f}')
+        logging.info(f'- Factor SuperLU (s): {self.factor_superlu_time:0.3f}')
+        logging.info(f'- Calls             : {self.setup_count}')
 
-        print(f'\n  Solve Linear System')
-        print(f'- Time (s): {self.solve_linear_time:0.3f}')
-        print(f'- Calls   : {self.solve_count}')
+        logging.info(f'\n  Solve Linear System')
+        logging.info(f'- Time (s): {self.solve_linear_time:0.3f}')
+        logging.info(f'- Calls   : {self.solve_count}')
 
-        print('\n  Other')
+        logging.info('\n  Other')
         if self.reac_man:
             slice_time = 0.0
             for ii in range(self.reac_man.n_cells):
                 slice_time += self.reac_man.cells[ii].slice_time
-            print(f'- Slice (s): {slice_time:0.3f}')
-        print(f'- Clean (s): {self.clean_time:0.3f}\n')
+            logging.info(f'- Slice (s): {slice_time:0.3f}')
+        logging.info(f'- Clean (s): {self.clean_time:0.3f}\n')

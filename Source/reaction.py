@@ -9,6 +9,7 @@
 ########################################################################################
 
 import numpy as np
+import logging
 import reaction_system
 import reaction_system_helper
 import reaction_layer
@@ -212,16 +213,16 @@ class reaction_manager:
 
     def print_timings(self):
         for i in range(len(self.reaction_systems)):
-            print(f'  - System {i+1}')
+            logging.info(f'  - System {i+1}')
             con_time = self.reaction_systems[i].concentration_time
             rate_time = self.reaction_systems[i].rate_time
             rem_time = self.reaction_systems[i].remaining_time
             con_times = self.reaction_systems[i].con_times
             rate_times = self.reaction_systems[i].rate_times
-            print(f'    - Conc (s)      : {con_time:0.3f}')
+            logging.info(f'    - Conc (s)      : {con_time:0.3f}')
             for ii in range(self.reaction_systems[i].n_rxn):
-                print(f'      - Rxn {ii+1} (s)   : {con_times[ii]:0.3f}')
-            print(f'    - Rate (s)      : {rate_time:0.3f}')
+                logging.info(f'      - Rxn {ii+1} (s)   : {con_times[ii]:0.3f}')
+            logging.info(f'    - Rate (s)      : {rate_time:0.3f}')
             for ii in range(self.reaction_systems[i].n_rxn):
-                print(f'      - Rxn {ii+1} (s)   : {rate_times[ii]:0.3f}')
-            print(f'    - Other (s)     : {rem_time:0.3f}')
+                logging.info(f'      - Rxn {ii+1} (s)   : {rate_times[ii]:0.3f}')
+            logging.info(f'    - Other (s)     : {rem_time:0.3f}')
