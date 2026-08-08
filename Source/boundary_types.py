@@ -13,6 +13,8 @@ import numpy as np
 
 class bc_base:
     is_linear = True
+    active = True       # checked by bc_manager before calling apply()
+    user_name = None    # set by boundary_factory from the YAML 'Name' key
 
     def setup_params(self):
         return 0
@@ -26,6 +28,10 @@ class bc_base:
         return 0
 
 
+    def reset_time(self, t):
+        return 0
+
+
 class _bc_wrapper(bc_base):
     '''Base class for BCs that wrap another BC. Forwards attribute
     lookups (my_end, n_ind, n_opp, k_ind, is_linear, etc.) to the
@@ -34,6 +40,10 @@ class _bc_wrapper(bc_base):
     '''
     def __getattr__(self, attr):
         return getattr(self.bc, attr)
+
+
+    def reset_time(self, t):
+        self.bc.reset_time(t)
 
 
 class end_bc(bc_base):
@@ -259,6 +269,7 @@ class temporal_boundary(_bc_wrapper):
         self.param_names = []
         self.param_functions = []
         self.name = self.bc.name + '_temporal'
+        self.time_offset = 0.0
 
 
     def add_param(self, param_name, param_function):
@@ -266,8 +277,12 @@ class temporal_boundary(_bc_wrapper):
         self.param_functions.append(param_function)
 
 
+    def reset_time(self, t):
+        self.time_offset = t
+
+
     def apply(self, eqn_sys, mat_man, t, T_state):
-        self.update_params(t)
+        self.update_params(t - self.time_offset)
         self.bc.apply(eqn_sys, mat_man, t, T_state)
 
 

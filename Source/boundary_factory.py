@@ -141,6 +141,9 @@ def factory(location, params, dx_arr, PA_r, mint_list, L_y=None, L_z=None, x_nod
         else:
             final_bc = bc
 
+        if 'Name' in param_dict.keys():
+            final_bc.user_name = param_dict['Name']
+
         bc_objects.append(final_bc)
 
     # Always return a list
