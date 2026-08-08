@@ -1,0 +1,44 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install system BLAS/LAPACK libraries
+        # Needed to link Spitfire's C++ "griffon" extension
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblas-dev liblapack-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scipy Cython setuptools gitpython cantera pandas pyyaml matplotlib
+
+      - name: Install Spitfire
+        # Spitfire isn't on PyPI, so it's built from source. --no-build-isolation
+        # lets its setup.py see the numpy/Cython we just installed.
+        run: pip install --no-build-isolation "git+https://github.com/sandialabs/Spitfire.git"
+
+      - name: Build LIM1TR's Cython extension
+        run: python setup.py build_ext --inplace
+
+      - name: Run unit tests
+        working-directory: Tests
+        run: python -m unittest discover -v
