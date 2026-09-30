@@ -55,7 +55,7 @@ def transient_solve(eqn_sys, verbose=True):
     if eqn_sys.fixed_step:
         step_size = eqn_sys.dt
     else:
-        step_size = PIController(target_error=eqn_sys.target_error)
+        step_size = PIController(target_error=eqn_sys.target_error, max_ramp=2.0)
 
     if eqn_sys.reac_man:
         linear_setup=eqn_sys.setup_superlu
